@@ -1,0 +1,2 @@
+def resolver(conflitos):
+    return []

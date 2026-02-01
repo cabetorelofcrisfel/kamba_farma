@@ -1,0 +1,9 @@
+# Dependências mínimas
+click>=8.0
+sqlite-utils>=3.0
+pytest>=7.0
+# GUI (opcional):
+pyqt5; python_version >= "3.8"
+
+# Visualizações e gráficos
+matplotlib>=3.6
