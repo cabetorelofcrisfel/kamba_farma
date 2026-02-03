@@ -1,10 +1,4 @@
-2026-02-01 01:02:47,946 DEBUG Login attempt username='Crisfel' db_path=/home/kamba/Desktop/kamba_farma/kamba/database/kamba_farma.db
-2026-02-01 01:02:48,038 DEBUG Found user id=1 nome='Crisfel' perfil='usuario' ativo=1
-2026-02-01 01:02:48,039 DEBUG Comparing hashes for 'Crisfel': given=ef797c8118f02dfb649607dd5d3f8c7623048c9c063d532cc95c5ed7a898a64f stored=ef797c8118f02dfb649607dd5d3f8c7623048c9c063d532cc95c5ed7a898a64f
-2026-02-01 01:03:27,588 DEBUG Login attempt username='Hercules' db_path=/home/kamba/Desktop/kamba_farma/kamba/database/kamba_farma.db
-2026-02-01 01:03:27,590 DEBUG Found user id=4 nome='Hercules' perfil='admin' ativo=1
-2026-02-01 01:03:27,590 DEBUG Comparing hashes for 'Hercules': given=a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3 stored=a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3
-2026-02-01 01:17:42,910 DEBUG Login attempt username='Crisfel' db_path=/home/kamba/Desktop/kamba_farma/kamba/database/kamba_farma.db
-2026-02-01 01:17:42,911 DEBUG Comparing hashes for 'Crisfel': given=ef797c8118f02dfb649607dd5d3f8c7623048c9c063d532cc95c5ed7a898a64f stored=ef797c8118f02dfb649607dd5d3f8c7623048c9c063d532cc95c5ed7a898a64f
-2026-02-01 01:18:04,502 DEBUG Login attempt username='Hercules' db_path=/home/kamba/Desktop/kamba_farma/kamba/database/kamba_farma.db
-2026-02-01 01:18:04,503 DEBUG Comparing hashes for 'Hercules': given=a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3 stored=a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3
+2026-02-03 18:21:07,341 DEBUG Import direto de models.admindashboard.produto falhou: No module named 'models'
+2026-02-03 18:21:07,352 DEBUG Import via import_module falhou: No module named 'models'
+2026-02-03 18:21:57,743 DEBUG Login attempt username='Hercules' db_path=C:\Users\cabet\Desktop\kamba\kamba_farma\database\kamba_farma.db
+2026-02-03 18:21:58,023 DEBUG Comparing hashes for 'Hercules': given=a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3 stored=a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3

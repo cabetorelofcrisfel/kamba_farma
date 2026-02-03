@@ -20,7 +20,7 @@ from PyQt5.QtWidgets import (
     QFrame, QSpacerItem, QGridLayout
 )
 from PyQt5.QtCore import Qt, QPropertyAnimation, QEasingCurve, QRect, QTimer
-from PyQt5.QtGui import QFont, QFontDatabase, QPainter, QBrush, QColor, QLinearGradient, QIcon, QPixmap
+from PyQt5.QtGui import QFont, QFontDatabase, QPainter, QBrush, QColor, QLinearGradient, QIcon, QPixmap, QMovie
 import hashlib
 import logging
 
@@ -77,19 +77,30 @@ except Exception:
 ProdutoPageModule = None
 try:
     from models.admindashboard.produto import ProdutoPage as ProdutoPageModule
-except Exception:
-    # Tentar carregar diretamente do arquivo produto.py para evitar conflito com o package
+except Exception as e:
+    logger.debug('Import direto de models.admindashboard.produto falhou: %s', e)
+    # Tentar carregar pelo nome do pacote (funciona quando PyInstaller empacota o módulo)
     try:
-        import importlib.util
-        from pathlib import Path
-        prod_path = Path(__file__).parent / 'produto.py'
-        if prod_path.exists():
-            spec = importlib.util.spec_from_file_location('models.admindashboard._produto_module', str(prod_path))
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
-            ProdutoPageModule = getattr(module, 'ProdutoPage', None)
-    except Exception:
-        ProdutoPageModule = None
+        import importlib
+        m = importlib.import_module('models.admindashboard.produto')
+        ProdutoPageModule = getattr(m, 'ProdutoPage', None)
+        if ProdutoPageModule:
+            logger.debug('ProdutoPage carregado via importlib.import_module')
+    except Exception as e2:
+        logger.debug('Import via import_module falhou: %s', e2)
+        # Fallback para desenvolvimento local: carregar o arquivo `produto.py` diretamente
+        try:
+            import importlib.util
+            from pathlib import Path
+            prod_path = Path(__file__).parent / 'produto.py'
+            if prod_path.exists():
+                spec = importlib.util.spec_from_file_location('models.admindashboard._produto_module', str(prod_path))
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                ProdutoPageModule = getattr(module, 'ProdutoPage', None)
+        except Exception as e3:
+            logger.debug('Import from file falhou: %s', e3)
+            ProdutoPageModule = None
 
 try:
     from models.admindashboard.lote import LotePage as LotePageModule
@@ -155,22 +166,60 @@ class AnimatedButton(QPushButton):
 
 
 class GradientHeader(QWidget):
-    def __init__(self, title):
+    def __init__(self, title, gif_path: Path | str | None = None, logo_size=(72, 72)):
         super().__init__()
         self.title = title
         self.setFixedHeight(120)
-        
+
+        # Layout: optional logo at left and centered title
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(20, 10, 20, 10)
+        layout.setSpacing(10)
+
+        self.logo_label = QLabel()
+        self.logo_label.setFixedSize(logo_size[0], logo_size[1])
+        self.logo_label.setVisible(False)
+
+        self.title_label = QLabel(self.title)
+        self.title_label.setStyleSheet("color: #000000; font-weight: 700;")
+        font = QFont('Segoe UI', 18, QFont.Bold)
+        self.title_label.setFont(font)
+        self.title_label.setAlignment(Qt.AlignCenter)
+
+        layout.addWidget(self.logo_label)
+        layout.addStretch()
+        layout.addWidget(self.title_label)
+        layout.addStretch()
+
+        # Load GIF from provided path or default location (same folder)
+        p = None
+        if gif_path:
+            p = Path(gif_path)
+        else:
+            p = Path(__file__).resolve().parent / "logo.gif"
+
+        try:
+            if p and p.exists():
+                movie = QMovie(str(p))
+                if movie.isValid():
+                    movie.setCacheMode(QMovie.CacheAll)
+                    movie.setScaledSize(self.logo_label.size())
+                    movie.setLoopCount(0)  # infinito
+                    self.logo_label.setMovie(movie)
+                    self.logo_label.setVisible(True)
+                    movie.start()
+        except Exception:
+            # falhar silenciosamente mantendo apenas o título
+            pass
+
     def paintEvent(self, event):
         painter = QPainter(self)
         gradient = QLinearGradient(0, 0, self.width(), 0)
         gradient.setColorAt(0, QColor(TEAL_PRIMARY))
         gradient.setColorAt(1, QColor(TEAL_LIGHT))
         painter.fillRect(self.rect(), QBrush(gradient))
-        
-        painter.setPen(QColor('#000000'))
-        font = QFont('Segoe UI', 18, QFont.Bold)
-        painter.setFont(font)
-        painter.drawText(self.rect(), Qt.AlignCenter, self.title)
+        # Title rendered by QLabel in layout
+
 
 
 class DashboardCard(QWidget):
@@ -1106,8 +1155,9 @@ class AdminDashboard(QMainWindow):
         menu_layout.setContentsMargins(0, 0, 0, 20)
         menu_layout.setSpacing(0)
 
-        # Header com gradiente
-        header = GradientHeader('KAMBA FARMA')
+        # Header com gradiente (tenta carregar logo.gif na mesma pasta do arquivo)
+        logo_path = Path(__file__).resolve().parent / 'logo.gif'
+        header = GradientHeader('KAMBA FARMA', gif_path=logo_path)
         menu_layout.addWidget(header)
 
         # Informações do usuário
@@ -1730,7 +1780,19 @@ class LoginWindow(QMainWindow):
             font-size: 24px;
             font-weight: bold;
         """)
-        image_label.setText("Sistema Farmacêutico")
+        # Tenta carregar logo.gif na mesma pasta do arquivo (mesma lógica do w.py)
+        gif_path = Path(__file__).resolve().parent / "logo.gif"
+        if os.path.exists(str(gif_path)):
+            try:
+                movie = QMovie(str(gif_path))
+                movie.setScaledSize(image_label.size())
+                image_label.setMovie(movie)
+                movie.start()
+            except Exception:
+                image_label.setText("Sistema Farmacêutico")
+        else:
+            image_label.setText("Sistema Farmacêutico")
+
         left_layout.addWidget(image_label)
         
         # Espaçador
