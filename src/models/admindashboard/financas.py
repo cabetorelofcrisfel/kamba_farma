@@ -45,7 +45,7 @@ class FinancasPage(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.views_dir = Path(__file__).parent / "financas"
+        self.views_dir = Path(__file__).parent / "."
         self._setup_ui()
 
     def _setup_ui(self):

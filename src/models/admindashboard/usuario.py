@@ -58,7 +58,7 @@ class UsuarioPage(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.views_dir = Path(__file__).parent / "usuario"
+        self.views_dir = Path(__file__).parent / "."
         self._setup_ui()
 
         # Apply milk theme
@@ -105,12 +105,12 @@ class UsuarioPage(QWidget):
         menu_layout.addWidget(menu_title)
 
         # Botões do menu (centro)
-        self.btn_adicionar = QPushButton("➕ Adicionar")
-        self.btn_lista = QPushButton("📋 Lista")
-        self.btn_registrados = QPushButton("📜 Registrados")
-        self.btn_permissoes = QPushButton("🔐 Permissões")
-        self.btn_logs = QPushButton("📊 Logs")
-        self.btn_config = QPushButton("⚙️ Configurações")
+        self.btn_adicionar = QPushButton("Adicionar")
+        self.btn_lista = QPushButton("Lista")
+        self.btn_registrados = QPushButton(" Registrados")
+        self.btn_permissoes = QPushButton(" Permissões")
+        self.btn_logs = QPushButton(" Logs")
+        self.btn_config = QPushButton(" Configurações")
 
         # Configurar botões
         buttons = [
@@ -173,7 +173,7 @@ class UsuarioPage(QWidget):
         status_layout.setSpacing(10)
         
         # Ícone de status
-        status_icon = QLabel("🟢")
+        status_icon = QLabel("")
         status_icon.setStyleSheet("font-size: 14px;")
         
         status_label = QLabel("Sistema Ativo")
@@ -202,6 +202,8 @@ class UsuarioPage(QWidget):
                 border-radius: 12px;
             }}
         """)
+        # Mapa de views carregadas dinamicamente (class_name -> widget instance)
+        self.loaded_views = {}
         self._load_views()
         
         content_layout.addWidget(self.stack)
@@ -216,6 +218,8 @@ class UsuarioPage(QWidget):
 
         # Selecionar primeiro item
         self.btn_adicionar.setChecked(True)
+        # Mostrar a view inicial (Adicionar) imediatamente
+        self._select(0)
 
         # Adicionar widgets ao layout principal
         main_layout.addWidget(menu_widget)
@@ -301,10 +305,48 @@ class UsuarioPage(QWidget):
                 container_layout.addWidget(widget)
                 
                 self.stack.addWidget(container)
-                
+
+                # Guardar referência da view real para comunicações posteriores
+                try:
+                    self.loaded_views[class_name] = widget
+                except Exception:
+                    pass
+
+                # Conectar sinal de usuário salvo (se a view o expuser)
+                if hasattr(widget, 'user_saved'):
+                    try:
+                        widget.user_saved.connect(self._on_user_saved)
+                    except Exception:
+                        pass
+
                 # Se a view tiver um método setup_style, chamá-lo
                 if hasattr(widget, 'setup_style'):
                     widget.setup_style()
+
+    def _on_user_saved(self, user_info):
+        """Handler chamado quando `AdicionarUsuarioView` emite `user_saved`.
+
+        Atualiza a lista (se possível) e troca para a aba de lista.
+        """
+        nome = user_info.get('nome', '')
+        try:
+            self.show_notification(f"✅ Usuário '{nome}' adicionado.", "success")
+        except Exception:
+            pass
+
+        # Se a view da lista expuser um método `refresh`, chamá-lo
+        list_widget = self.loaded_views.get('UsuariosView')
+        if list_widget and hasattr(list_widget, 'refresh'):
+            try:
+                list_widget.refresh()
+            except Exception:
+                pass
+
+        # Alternar para a aba de lista (índice 1)
+        try:
+            self._select(1)
+        except Exception:
+            pass
 
     def add_view(self, widget: QWidget, title: str = ""):
         """Adiciona uma view manualmente ao stack"""

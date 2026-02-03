@@ -2,3 +2,5 @@
 2026-02-03 18:21:07,352 DEBUG Import via import_module falhou: No module named 'models'
 2026-02-03 18:21:57,743 DEBUG Login attempt username='Hercules' db_path=C:\Users\cabet\Desktop\kamba\kamba_farma\database\kamba_farma.db
 2026-02-03 18:21:58,023 DEBUG Comparing hashes for 'Hercules': given=a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3 stored=a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3
+2026-02-03 23:08:35,691 DEBUG Import direto de models.admindashboard.produto falhou: No module named 'models'
+2026-02-03 23:08:35,708 DEBUG Import via import_module falhou: No module named 'models'

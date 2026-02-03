@@ -328,7 +328,7 @@ class LotePage(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.views_dir = Path(__file__).parent / "lote"
+        self.views_dir = Path(__file__).parent / "."
         self.setup_ui()
 
     def setup_ui(self):

@@ -142,7 +142,8 @@ class ProdutoPage(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.views_dir = Path(__file__).parent / "produto"
+        self.views_dir = Path(__file__).parent / "."
+        self.views_dir1 = Path(__file__).parent / "produtos_view.py"
         self._setup_ui()
         self._apply_modern_styles()
 
@@ -181,6 +182,8 @@ class ProdutoPage(QWidget):
                 border-radius: 14px;
             }}
         """)
+        # Guarda referências das views carregadas dinamicamente
+        self.loaded_views = {}
         self._load_views()
         
         content_layout.addWidget(self.stack)
@@ -219,10 +222,10 @@ class ProdutoPage(QWidget):
         nav_layout.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Expanding, QSizePolicy.Minimum))
 
         # Criar botões
-        self.btn_adicionar = ModernButton("Adicionar", "➕")
-        self.btn_lista = ModernButton("Lista", "📋")
-        self.btn_catalogo = ModernButton("Catálogo", "🛍️")
-        self.btn_destaques = ModernButton("Destaques", "⭐")
+        self.btn_adicionar = ModernButton("Adicionar", "")
+        self.btn_lista = ModernButton("Lista", "")
+        self.btn_catalogo = ModernButton("Catálogo", "")
+        self.btn_destaques = ModernButton("Destaques", "")
 
         # Configurar botões
         self.buttons = [
@@ -239,6 +242,12 @@ class ProdutoPage(QWidget):
 
         # Selecionar primeiro item
         self.btn_adicionar.setSelected(True)
+        # Mostrar a view inicial (Adicionar) imediatamente
+        # (faz a seleção após carregar as views em _load_views)
+        try:
+            self._select(0)
+        except Exception:
+            pass
 
         return nav_frame
 
@@ -316,6 +325,26 @@ class ProdutoPage(QWidget):
                 
                 self.stack.addWidget(container)
 
+                # Guardar referência da view real para comunicações posteriores
+                try:
+                    self.loaded_views[class_name] = widget
+                except Exception:
+                    pass
+
+                # Se a view expor sinal de produto adicionado, conectar
+                if hasattr(widget, 'product_added'):
+                    try:
+                        widget.product_added.connect(self._on_product_added)
+                    except Exception:
+                        pass
+
+                # Se a view expor um sinal para abrir a aba de adicionar, conectar
+                if hasattr(widget, 'open_add'):
+                    try:
+                        widget.open_add.connect(lambda: self._select(0))
+                    except Exception:
+                        pass
+
     def _apply_modern_styles(self):
         """Aplica estilos modernos à interface."""
         self.setStyleSheet(f"""
@@ -325,6 +354,31 @@ class ProdutoPage(QWidget):
                 font-family: 'Segoe UI', 'Inter', Arial, sans-serif;
             }}
         """)
+
+    def _on_product_added(self, product_info):
+        """Handler chamado quando `AddProductPage` emite `product_added`.
+
+        Atualiza a lista (se possível) e troca para a aba de lista.
+        """
+        nome = product_info.get('nome', '') if isinstance(product_info, dict) else ''
+        try:
+            self.show_notification(f"✅ Produto '{nome}' adicionado.", "success")
+        except Exception:
+            pass
+
+        # Se a view da lista expuser um método `refresh`, chamá-lo
+        list_widget = self.loaded_views.get('ProdutosView')
+        if list_widget and hasattr(list_widget, 'refresh'):
+            try:
+                list_widget.refresh()
+            except Exception:
+                pass
+
+        # Alternar para a aba de lista (índice 1)
+        try:
+            self._select(1)
+        except Exception:
+            pass
         
     def show_notification(self, message: str, type: str = "info", duration: int = 3000):
         """Exibe uma notificação temporária."""

@@ -64,7 +64,9 @@ class VendaPage(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.views_dir = Path(__file__).parent / "venda"
+        # Support both a `venda/` subfolder and sibling view modules placed in the same directory.
+        # This makes it easier to reuse existing modules like `vender_produto.py`.
+        self.views_dirs = [Path(__file__).parent / "venda", Path(__file__).parent]
         self._setup_ui()
         self.setStyleSheet(f"""
             QWidget {{ background-color: {BG}; color: {TEXT}; font-family: 'Segoe UI', Arial; }}
@@ -134,44 +136,54 @@ class VendaPage(QWidget):
         buttons = [self.btn_vender, self.btn_devolver, self.btn_historico]
         for i, b in enumerate(buttons):
             b.setChecked(i == index)
-        # Caso especial: se selecionar Histórico (index 2), tentar carregar dinamicamente a view
-        if index == 2:
+        # Tentar recarregar dinamicamente a view correspondente (vender, devolver, histórico)
+        dynamic_views = {
+            0: ("vender_produto", "VenderProdutoView", "vender_produto.py"),
+            1: ("devolucao_de_produto", "DevolucaoDeProdutoView", "devolucao_de_produto.py"),
+            2: ("historico_de_venda", "HistoricoVendaView", "historico_de_venda.py"),
+        }
+
+        if index in dynamic_views:
+            mod_short, cls_name, fname = dynamic_views[index]
             try:
                 import importlib
                 # tentar importar como pacote primeiro
                 try:
-                    import models.admindashboard.venda.historico_de_venda as hist_mod
-                    importlib.reload(hist_mod)
+                    mod = importlib.import_module(f"models.admindashboard.{mod_short}")
+                    importlib.reload(mod)
                 except ModuleNotFoundError:
-                    # fallback: carregar diretamente pelo caminho
-                    historico_path = Path(__file__).parent / 'venda' / 'historico_de_venda.py'
-                    if historico_path.exists():
-                        import importlib.util
-                        spec = importlib.util.spec_from_file_location('models.admindashboard.venda.historico_de_venda', str(historico_path))
-                        hist_mod = importlib.util.module_from_spec(spec)
-                        spec.loader.exec_module(hist_mod)
-                    else:
+                    # fallback: procurar o arquivo nas pastas de views conhecidas
+                    mod = None
+                    import importlib.util
+                    for d in getattr(self, "views_dirs", [Path(__file__).parent / 'venda', Path(__file__).parent]):
+                        candidate = d / fname
+                        if candidate.exists():
+                            spec = importlib.util.spec_from_file_location(f"models.admindashboard.{mod_short}", str(candidate))
+                            mod = importlib.util.module_from_spec(spec)
+                            spec.loader.exec_module(mod)
+                            break
+                    if mod is None:
                         raise
 
-                HistClass = getattr(hist_mod, 'HistoricoVendaView', None)
-                if HistClass:
-                    old_widget = self.stack.widget(2) if 2 < self.stack.count() else None
-                    new_widget = HistClass()
+                ViewClass = getattr(mod, cls_name, None)
+                if ViewClass:
+                    old_widget = self.stack.widget(index) if index < self.stack.count() else None
+                    new_widget = ViewClass()
                     if old_widget is not None:
                         self.stack.removeWidget(old_widget)
                         try:
                             old_widget.deleteLater()
                         except Exception:
                             pass
-                    self.stack.insertWidget(2, new_widget)
-                    self.stack.setCurrentIndex(2)
+                    self.stack.insertWidget(index, new_widget)
+                    self.stack.setCurrentIndex(index)
                     return
             except Exception as e:
                 try:
                     from PyQt5.QtWidgets import QMessageBox
-                    QMessageBox.warning(self, 'Erro', f'Falha ao carregar Histórico de Vendas: {e}')
+                    QMessageBox.warning(self, 'Erro', f'Falha ao carregar a view: {e}')
                 except Exception:
-                    print('Falha ao carregar Histórico de Vendas:', e)
+                    print('Falha ao carregar a view:', e)
                 # Se falhar, continua com o comportamento padrão abaixo
 
         if 0 <= index < self.stack.count():
@@ -183,16 +195,23 @@ class VendaPage(QWidget):
             anim.start()
 
     def _load_views(self):
-        """Load vender, devolver and historico views from venda/"""
-        views = [
-            (self.views_dir / "vender_produto.py", "VenderProdutoView"),
-            (self.views_dir / "devolucao_de_produto.py", "DevolucaoDeProdutoView"),
-            (self.views_dir / "historico_de_venda.py", "HistoricoDeVendaView"),
+        """Load vender, devolver and historico views from known locations."""
+        view_names = [
+            ("vender_produto.py", "VenderProdutoView"),
+            ("devolucao_de_produto.py", "DevolucaoDeProdutoView"),
+            ("historico_de_venda.py", "HistoricoDeVendaView"),
         ]
 
-        for path, class_name in views:
-            widget = _load_view_from_path(path, class_name)
+        for fname, class_name in view_names:
+            widget = None
+            for d in getattr(self, "views_dirs", [Path(__file__).parent / "venda", Path(__file__).parent]):
+                path = d / fname
+                widget = _load_view_from_path(path, class_name)
+                if widget is not None:
+                    break
+
             if widget is None:
+                searched = ", ".join(str(d / fname) for d in getattr(self, "views_dirs", []))
                 placeholder = QWidget()
                 placeholder.setStyleSheet(f"background-color: {CARD}; border: 2px dashed {BORDER}; border-radius: 12px;")
                 pl = QVBoxLayout(placeholder)
@@ -200,7 +219,7 @@ class VendaPage(QWidget):
                 pl.setAlignment(Qt.AlignCenter)
                 label = QLabel(
                     f"<div style='text-align:center'><h3 style='color:{ACCENT};'>{class_name}</h3>"
-                    f"<p style='color:{MUTED}; max-width:520px;'>Crie {path.name} na pasta venda/ com uma classe <b>{class_name}</b> que herde de QWidget.</p></div>"
+                    f"<p style='color:{MUTED}; max-width:520px;'>Crie {fname} em uma destas localizações:<br><i>{searched}</i><br>com uma classe <b>{class_name}</b> que herde de QWidget.</p></div>"
                 )
                 label.setWordWrap(True)
                 pl.addWidget(label)
