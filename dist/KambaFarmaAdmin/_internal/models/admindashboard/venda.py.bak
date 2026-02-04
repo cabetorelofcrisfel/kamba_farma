@@ -1,0 +1,243 @@
+"""SPA container for vendas views.
+
+Provides `VendaPage` which dynamically loads views from the `venda/`
+subfolder. Expected view files and class names (defaults):
+
+- vender_produto.py -> `VenderProdutoView`
+- devolucao_de_produto.py -> `DevolucaoDeProdutoView`
+- historico_de_venda.py -> `HistoricoDeVendaView`
+
+If a view file is missing or doesn't expose the expected class, a
+user-friendly placeholder is shown with instructions.
+"""
+
+from pathlib import Path
+import importlib.util
+import sys
+from typing import Optional, TYPE_CHECKING
+
+# Tornar import acessível para analisadores de tipo (pylance/mypy) sem importar em tempo de
+# execução. Isso evita avisos "could not be resolved" no editor enquanto a importação dinâmica
+# continua funcionando em runtime.
+if TYPE_CHECKING:
+    from models.admindashboard.venda.historico_de_venda import HistoricoVendaView  # type: ignore
+
+from PyQt5.QtWidgets import (
+    QWidget, QHBoxLayout, QVBoxLayout, QPushButton, QStackedWidget,
+    QLabel, QApplication, QFrame
+)
+from PyQt5.QtCore import Qt, QPropertyAnimation, QTimer
+from PyQt5.QtGui import QFont
+
+
+# Theme colors (light)
+BG = "#FBFCFE"
+CARD = "#FFFFFF"
+BORDER = "#E6EEF8"
+TEXT = "#162029"
+ACCENT = "#2563EB"
+MUTED = "#6B7280"
+
+
+def _load_view_from_path(path: Path, class_name: str) -> Optional[QWidget]:
+    """Import `class_name` from `path` and return an instance, or None."""
+    try:
+        if not path.exists():
+            return None
+        spec = importlib.util.spec_from_file_location(path.stem, str(path))
+        if spec is None or spec.loader is None:
+            return None
+        module = importlib.util.module_from_spec(spec)
+        mod_name = f"_venda_dynamic_{path.stem}"
+        sys.modules[mod_name] = module
+        spec.loader.exec_module(module)
+        cls = getattr(module, class_name, None)
+        if cls is None:
+            return None
+        return cls()
+    except Exception:
+        return None
+
+
+class VendaPage(QWidget):
+    """SPA container for venda-related views."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        # Support both a `venda/` subfolder and sibling view modules placed in the same directory.
+        # This makes it easier to reuse existing modules like `vender_produto.py`.
+        self.views_dirs = [Path(__file__).parent / "venda", Path(__file__).parent]
+        self._setup_ui()
+        self.setStyleSheet(f"""
+            QWidget {{ background-color: {BG}; color: {TEXT}; font-family: 'Segoe UI', Arial; }}
+            QPushButton {{ border: none; padding: 10px 16px; border-radius: 8px; font-weight: 600; }}
+            QPushButton:checked {{ background-color: {ACCENT}20; color: {ACCENT}; border: 1px solid {ACCENT}; }}
+        """)
+
+    def _setup_ui(self):
+        main_layout = QVBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+
+        # Top menu
+        menu = QFrame()
+        menu.setFixedHeight(80)
+        menu.setStyleSheet(f"background-color: {CARD}; border-bottom: 1px solid {BORDER};")
+        menu_layout = QHBoxLayout(menu)
+        menu_layout.setContentsMargins(20, 10, 20, 10)
+        menu_layout.setSpacing(8)
+
+        title = QLabel("🛒 GESTÃO DE VENDAS")
+        title.setFont(QFont("Segoe UI", 14, QFont.Bold))
+        title.setStyleSheet(f"color: {TEXT}; padding-right: 16px; border-right: 1px solid {BORDER};")
+        menu_layout.addWidget(title)
+
+        # Buttons
+        self.btn_vender = QPushButton("💸 Vender Produto")
+        self.btn_devolver = QPushButton("↩️ Devolver Produto")
+        self.btn_historico = QPushButton("📜 Histórico de Vendas")
+
+        for btn in (self.btn_vender, self.btn_devolver, self.btn_historico):
+            btn.setCursor(Qt.PointingHandCursor)
+            btn.setCheckable(True)
+            btn.setMinimumWidth(160)
+            menu_layout.addWidget(btn)
+
+        menu_layout.addStretch()
+
+        # Status
+        status = QLabel("Sistema de Vendas")
+        status.setStyleSheet(f"color: {MUTED}; padding: 8px 12px; background: {BG}; border-radius: 8px;")
+        menu_layout.addWidget(status)
+
+        main_layout.addWidget(menu)
+
+        # Content area
+        content = QFrame()
+        content.setStyleSheet(f"background-color: {BG};")
+        content_layout = QVBoxLayout(content)
+        content_layout.setContentsMargins(20, 20, 20, 20)
+        content_layout.setSpacing(0)
+
+        self.stack = QStackedWidget()
+        self._load_views()
+
+        content_layout.addWidget(self.stack)
+        main_layout.addWidget(content, 1)
+
+        # Connections
+        self.btn_vender.clicked.connect(lambda: self._select(0))
+        self.btn_devolver.clicked.connect(lambda: self._select(1))
+        self.btn_historico.clicked.connect(lambda: self._select(2))
+
+        self.btn_vender.setChecked(True)
+
+    def _select(self, index: int):
+        buttons = [self.btn_vender, self.btn_devolver, self.btn_historico]
+        for i, b in enumerate(buttons):
+            b.setChecked(i == index)
+        # Tentar recarregar dinamicamente a view correspondente (vender, devolver, histórico)
+        dynamic_views = {
+            0: ("vender_produto", "VenderProdutoView", "vender_produto.py"),
+            1: ("devolucao_de_produto", "DevolucaoDeProdutoView", "devolucao_de_produto.py"),
+            2: ("historico_de_venda", "HistoricoVendaView", "historico_de_venda.py"),
+        }
+
+        if index in dynamic_views:
+            mod_short, cls_name, fname = dynamic_views[index]
+            try:
+                import importlib
+                # tentar importar como pacote primeiro
+                try:
+                    mod = importlib.import_module(f"models.admindashboard.{mod_short}")
+                    importlib.reload(mod)
+                except ModuleNotFoundError:
+                    # fallback: procurar o arquivo nas pastas de views conhecidas
+                    mod = None
+                    import importlib.util
+                    for d in getattr(self, "views_dirs", [Path(__file__).parent / 'venda', Path(__file__).parent]):
+                        candidate = d / fname
+                        if candidate.exists():
+                            spec = importlib.util.spec_from_file_location(f"models.admindashboard.{mod_short}", str(candidate))
+                            mod = importlib.util.module_from_spec(spec)
+                            spec.loader.exec_module(mod)
+                            break
+                    if mod is None:
+                        raise
+
+                ViewClass = getattr(mod, cls_name, None)
+                if ViewClass:
+                    old_widget = self.stack.widget(index) if index < self.stack.count() else None
+                    new_widget = ViewClass()
+                    if old_widget is not None:
+                        self.stack.removeWidget(old_widget)
+                        try:
+                            old_widget.deleteLater()
+                        except Exception:
+                            pass
+                    self.stack.insertWidget(index, new_widget)
+                    self.stack.setCurrentIndex(index)
+                    return
+            except Exception as e:
+                try:
+                    from PyQt5.QtWidgets import QMessageBox
+                    QMessageBox.warning(self, 'Erro', f'Falha ao carregar a view: {e}')
+                except Exception:
+                    print('Falha ao carregar a view:', e)
+                # Se falhar, continua com o comportamento padrão abaixo
+
+        if 0 <= index < self.stack.count():
+            self.stack.setCurrentIndex(index)
+            anim = QPropertyAnimation(self.stack, b"windowOpacity")
+            anim.setDuration(220)
+            anim.setStartValue(0.0)
+            anim.setEndValue(1.0)
+            anim.start()
+
+    def _load_views(self):
+        """Load vender, devolver and historico views from known locations."""
+        view_names = [
+            ("vender_produto.py", "VenderProdutoView"),
+            ("devolucao_de_produto.py", "DevolucaoDeProdutoView"),
+            ("historico_de_venda.py", "HistoricoDeVendaView"),
+        ]
+
+        for fname, class_name in view_names:
+            widget = None
+            for d in getattr(self, "views_dirs", [Path(__file__).parent / "venda", Path(__file__).parent]):
+                path = d / fname
+                widget = _load_view_from_path(path, class_name)
+                if widget is not None:
+                    break
+
+            if widget is None:
+                searched = ", ".join(str(d / fname) for d in getattr(self, "views_dirs", []))
+                placeholder = QWidget()
+                placeholder.setStyleSheet(f"background-color: {CARD}; border: 2px dashed {BORDER}; border-radius: 12px;")
+                pl = QVBoxLayout(placeholder)
+                pl.setContentsMargins(40, 40, 40, 40)
+                pl.setAlignment(Qt.AlignCenter)
+                label = QLabel(
+                    f"<div style='text-align:center'><h3 style='color:{ACCENT};'>{class_name}</h3>"
+                    f"<p style='color:{MUTED}; max-width:520px;'>Crie {fname} em uma destas localizações:<br><i>{searched}</i><br>com uma classe <b>{class_name}</b> que herde de QWidget.</p></div>"
+                )
+                label.setWordWrap(True)
+                pl.addWidget(label)
+                self.stack.addWidget(placeholder)
+            else:
+                # Wrap in container to give margins
+                container = QWidget()
+                cl = QVBoxLayout(container)
+                cl.setContentsMargins(0, 0, 0, 0)
+                cl.addWidget(widget)
+                self.stack.addWidget(container)
+
+
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    app.setStyle('Fusion')
+    w = VendaPage()
+    w.resize(1200, 900)
+    w.setWindowTitle('Kamba Farma - Vendas')
+    w.show()
+    sys.exit(app.exec_())

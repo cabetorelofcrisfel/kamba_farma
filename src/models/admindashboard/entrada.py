@@ -58,7 +58,7 @@ class KumbuDialog(QDialog):
         valor_layout = QHBoxLayout()
         valor_layout.addWidget(QLabel("Valor:"))
         self.valor_field = QDoubleSpinBox()
-        self.valor_field.setPrefix("AOA ")
+        self.valor_field.setPrefix("Kz ")
         self.valor_field.setDecimals(2)
         self.valor_field.setMaximum(1e12)
         valor_layout.addWidget(self.valor_field)
@@ -141,7 +141,7 @@ class EmprestimoDialog(QDialog):
         valor_layout = QHBoxLayout()
         valor_layout.addWidget(QLabel("Valor:"))
         self.valor_field = QDoubleSpinBox()
-        self.valor_field.setPrefix("AOA ")
+        self.valor_field.setPrefix("Kz ")
         self.valor_field.setDecimals(2)
         self.valor_field.setMaximum(1e12)
         valor_layout.addWidget(self.valor_field)
@@ -219,7 +219,7 @@ class EntradaView(QWidget):
         btn_calc.clicked.connect(self.compute_month_stats)
         # calcular automaticamente ao mudar mês
         self.mes_picker.dateChanged.connect(lambda _: self.compute_month_stats())
-        btn_atualizar = QPushButton("🔄 Atualizar")
+        btn_atualizar = QPushButton(" Atualizar")
         btn_atualizar.clicked.connect(self.compute_month_stats)
         analise_layout.addWidget(lbl_mes)
         analise_layout.addWidget(self.mes_picker)
@@ -240,10 +240,10 @@ class EntradaView(QWidget):
         # Área de resultados do mês: total de vendas, kumbu, empréstimo e ranking de produtos
         results_layout = QVBoxLayout()
 
-        self.total_vendas_label = QLabel("Vendas no mês: AOA 0,00")
-        self.kumbu_label = QLabel("Kumbu no mês: AOA 0,00")
-        self.emprest_label = QLabel("Empréstimo no mês: AOA 0,00")
-        self.total_label = QLabel("Total no mês: AOA 0,00")
+        self.total_vendas_label = QLabel("Vendas no mês: Kz 0,00")
+        self.kumbu_label = QLabel("Kumbu no mês: Kz 0,00")
+        self.emprest_label = QLabel("Empréstimo no mês: Kz 0,00")
+        self.total_label = QLabel("Total no mês: Kz 0,00")
         self.total_label.setFont(QFont(None, 12, QFont.Bold))
 
         results_layout.addWidget(self.total_vendas_label)
@@ -296,22 +296,22 @@ class EntradaView(QWidget):
             cur.execute("SELECT SUM(total) as total_mes FROM vendas WHERE strftime('%Y-%m', data_venda) = ?", (ym,))
             r = cur.fetchone()
             total_vendas = r['total_mes'] if r and r['total_mes'] is not None else 0.0
-            self.total_vendas_label.setText(f"Vendas no mês: AOA {total_vendas:,.2f}")
+            self.total_vendas_label.setText(f"Vendas no mês: Kz {total_vendas:,.2f}")
 
             # Somar kumbu e empréstimo do mês
             cur.execute("SELECT SUM(valor) as kumbu_mes FROM transacoes_financeiras WHERE tipo = 'kumbu' AND strftime('%Y-%m', data_transacao) = ?", (ym,))
             r = cur.fetchone()
             kumbu_mes = r['kumbu_mes'] if r and r['kumbu_mes'] is not None else 0.0
-            self.kumbu_label.setText(f"Kumbu no mês: AOA {kumbu_mes:,.2f}")
+            self.kumbu_label.setText(f"Kumbu no mês: Kz {kumbu_mes:,.2f}")
 
             cur.execute("SELECT SUM(valor) as emprest_mes FROM transacoes_financeiras WHERE tipo = 'emprestimo' AND strftime('%Y-%m', data_transacao) = ?", (ym,))
             r = cur.fetchone()
             emprest_mes = r['emprest_mes'] if r and r['emprest_mes'] is not None else 0.0
-            self.emprest_label.setText(f"Empréstimo no mês: AOA {emprest_mes:,.2f}")
+            self.emprest_label.setText(f"Empréstimo no mês: Kz {emprest_mes:,.2f}")
 
             # Total geral = vendas + kumbu + empréstimo
             total_geral = total_vendas + kumbu_mes + emprest_mes
-            self.total_label.setText(f"Total no mês: AOA {total_geral:,.2f}")
+            self.total_label.setText(f"Total no mês: Kz {total_geral:,.2f}")
 
             # Produtos vendidos (do mais vendido ao menos vendido)
             cur.execute(

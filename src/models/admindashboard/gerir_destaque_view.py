@@ -34,7 +34,7 @@ class ManageHighlightPage(QWidget):
         layout.setContentsMargins(16, 12, 16, 12)
         layout.setSpacing(8)
 
-        title = QLabel("🌟 Produtos em Destaque")
+        title = QLabel(" Produtos em Destaque")
         title_font = QFont("Segoe UI", 16, QFont.Bold)
         title.setFont(title_font)
         title.setStyleSheet("color: #2C3E50;")

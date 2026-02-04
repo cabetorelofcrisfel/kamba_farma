@@ -18,24 +18,24 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, QPropertyAnimation, QTimer
 from PyQt5.QtGui import QFont, QColor, QPainter, QPainterPath
 
-# Paleta de cores - TEMA CLARO MODERNO
-MILK_BG = "#FFFBF5"  # Fundo leitoso
-CARD_BG = "#FFFFFF"  # Branco puro para cards
-LIGHT_BORDER = "#E8E8E8"  # Borda cinza claro
-ACCENT_BORDER = "#00BFA5"  # Borda de destaque teal
-TEXT_PRIMARY = "#2C3E50"  # Azul escuro para texto principal
-TEXT_SECONDARY = "#7F8C8D"  # Cinza para texto secundário
-TEXT_LIGHT = "#95A5A6"  # Cinza mais claro
-TEAL_PRIMARY = "#00BFA5"  # Teal principal
-TEAL_LIGHT = "#E0F7FA"  # Teal muito claro para fundo
-TEAL_HOVER = "#B2EBF2"  # Teal para hover
-GREEN_SUCCESS = "#2ECC71"  # Verde moderno
-RED_ERROR = "#E74C3C"  # Vermelho moderno
-PURPLE = "#9B59B6"  # Roxo moderno
-BLUE_INFO = "#3498DB"  # Azul moderno
-ORANGE_ALERT = "#F39C12"  # Laranja moderno
-SHADOW_COLOR = "#00000010"  # Sombra sutil
-
+from config.colors import *
+# Local aliases and helpers
+MILK_BG = BACKGROUND_GRAY
+CARD_BG = WHITE
+LIGHT_BORDER = "#E8E8E8"
+ACCENT_BORDER = PRIMARY_DARK
+TEXT_PRIMARY = TEXT_PRIMARY
+TEXT_SECONDARY = "#7F8C8D"
+TEXT_LIGHT = "#95A5A6"
+TEAL_PRIMARY = PRIMARY_COLOR
+TEAL_LIGHT = "#E6F9FB"
+TEAL_HOVER = "#CFF8FA"
+GREEN_SUCCESS = "#2ECC71"
+RED_ERROR = ACCENT_RED
+PURPLE = "#9B59B6"
+BLUE_INFO = "#3498DB"
+ORANGE_ALERT = "#F39C12"
+SHADOW_COLOR = SHADOW_COLOR
 
 class RoundedFrame(QFrame):
     """Frame com cantos arredondados."""
@@ -204,11 +204,11 @@ class ProdutoPage(QWidget):
         button_layout.setSpacing(10)
 
         # Criar botões
-        self.btn_adicionar = ModernButton("Adicionar", "➕")
-        self.btn_lista = ModernButton("Lista", "📋")
-        self.btn_catalogo = ModernButton("Catálogo", "🛍️")
-        self.btn_relatorios = ModernButton("Relatórios", "📊")
-        self.btn_exportar = ModernButton("Exportar", "📤")
+        self.btn_adicionar = ModernButton("Adicionar", "")
+        self.btn_lista = ModernButton("Lista", "")
+        self.btn_catalogo = ModernButton("Catálogo", "")
+        self.btn_relatorios = ModernButton("Relatórios", "")
+        self.btn_exportar = ModernButton("Exportar", "")
         self.btn_destaques = ModernButton("Destaques", "⭐")
 
         # Configurar botões
@@ -303,7 +303,7 @@ class ProdutoPage(QWidget):
                 
                 placeholder_label = QLabel(
                     f"<div style='text-align: center;'>"
-                    f"<h3 style='color:{TEAL_PRIMARY}; margin-bottom: 15px; font-size: 20px;'>🚧 View em Construção</h3>"
+                    f"<h3 style='color:{TEAL_PRIMARY}; margin-bottom: 15px; font-size: 20px;'> View em Construção</h3>"
                     f"<p style='color:{TEXT_SECONDARY}; font-size: 14px; line-height: 1.6; max-width: 500px;'>"
                     f"<b>Classe:</b> {class_name}<br>"
                     f"<b>Arquivo:</b> {path.name}<br><br>"

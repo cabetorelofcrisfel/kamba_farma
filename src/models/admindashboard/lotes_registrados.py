@@ -24,7 +24,7 @@ class LotesRegistradosView(QWidget):
 
     def _build_ui(self):
         layout = QVBoxLayout(self)
-        header = QLabel("📋 Lotes Registrados")
+        header = QLabel(" Lotes Registrados")
         header.setStyleSheet("font-size:18px; font-weight:600;")
         layout.addWidget(header)
 
@@ -44,7 +44,7 @@ class LotesRegistradosView(QWidget):
         layout.addWidget(self.table)
 
         btns = QHBoxLayout()
-        refresh = QPushButton("🔄 Atualizar")
+        refresh = QPushButton(" Atualizar")
         refresh.clicked.connect(self.load_lotes)
         btns.addStretch()
         btns.addWidget(refresh)

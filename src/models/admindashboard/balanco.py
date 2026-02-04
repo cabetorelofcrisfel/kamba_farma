@@ -52,26 +52,26 @@ class BalancoView(QWidget):
         self.mes_picker.setDate(QDate.currentDate())
         self.mes_picker.setCalendarPopup(True)
         self.mes_picker.dateChanged.connect(self.compute_balanco)
-        btn_atualizar = QPushButton("🔄 Atualizar")
+        btn_atualizar = QPushButton(" Atualizar")
         btn_atualizar.clicked.connect(self.compute_balanco)
         mes_layout.addWidget(lbl_mes)
         mes_layout.addWidget(self.mes_picker)
         mes_layout.addWidget(btn_atualizar)
         mes_layout.addStretch()
         layout.addLayout(mes_layout)
-
+        PRIMARY_COLOR = "#28C7D3"
         # ===== SEÇÃO DE ENTRADAS =====
-        entrada_label = QLabel("📥 ENTRADAS")
-        entrada_label.setStyleSheet("font-weight:700;font-size:12px;color:#009688;margin-top:10px;")
+        entrada_label = QLabel(" ENTRADAS")
+        entrada_label.setStyleSheet(f"font-weight:700;font-size:12px;color:{PRIMARY_COLOR};margin-top:10px;")
         layout.addWidget(entrada_label)
 
         # Subtotais de entradas
-        self.vendas_label = QLabel("Vendas: AOA 0,00")
-        self.kumbu_label = QLabel("Kumbu: AOA 0,00")
-        self.emprestimo_label = QLabel("Empréstimo: AOA 0,00")
-        self.total_entrada_label = QLabel("Total Entradas: AOA 0,00")
+        self.vendas_label = QLabel("Vendas: Kz 0,00")
+        self.kumbu_label = QLabel("Kumbu: Kz 0,00")
+        self.emprestimo_label = QLabel("Empréstimo: Kz 0,00")
+        self.total_entrada_label = QLabel("Total Entradas: Kz 0,00")
         self.total_entrada_label.setFont(QFont(None, 11, QFont.Bold))
-        self.total_entrada_label.setStyleSheet("color:#009688;")
+        self.total_entrada_label.setStyleSheet(f"color:{PRIMARY_COLOR};")
 
         layout.addWidget(self.vendas_label)
         layout.addWidget(self.kumbu_label)
@@ -79,20 +79,20 @@ class BalancoView(QWidget):
         layout.addWidget(self.total_entrada_label)
 
         # ===== SEÇÃO DE SAÍDAS =====
-        saida_label = QLabel("📤 SAÍDAS")
-        saida_label.setStyleSheet("font-weight:700;font-size:12px;color:#FF6B6B;margin-top:15px;")
+        saida_label = QLabel(" SAÍDAS")
+        saida_label.setStyleSheet(f"font-weight:700;font-size:12px;color:{ACCENT_RED};margin-top:15px;")
         layout.addWidget(saida_label)
-
+        ACCENT_RED = "#E53935"
         # Subtotais de saídas por categoria
-        self.transferencia_label = QLabel("Transferência: AOA 0,00")
-        self.stock_label = QLabel("Compra Stock: AOA 0,00")
-        self.pessoal_label = QLabel("Uso Pessoal: AOA 0,00")
-        self.passagem_label = QLabel("Passagem: AOA 0,00")
-        self.salario_label = QLabel("Salário: AOA 0,00")
-        self.outro_label = QLabel("Outro: AOA 0,00")
-        self.total_saida_label = QLabel("Total Saídas: AOA 0,00")
+        self.transferencia_label = QLabel("Transferência: Kz 0,00")
+        self.stock_label = QLabel("Compra Stock: Kz 0,00")
+        self.pessoal_label = QLabel("Uso Pessoal: Kz 0,00")
+        self.passagem_label = QLabel("Passagem: Kz 0,00")
+        self.salario_label = QLabel("Salário: Kz 0,00")
+        self.outro_label = QLabel("Outro: Kz 0,00")
+        self.total_saida_label = QLabel("Total Saídas: Kz 0,00")
         self.total_saida_label.setFont(QFont(None, 11, QFont.Bold))
-        self.total_saida_label.setStyleSheet("color:#FF6B6B;")
+        self.total_saida_label.setStyleSheet(f"color:{ACCENT_RED};")
 
         layout.addWidget(self.transferencia_label)
         layout.addWidget(self.stock_label)
@@ -103,11 +103,11 @@ class BalancoView(QWidget):
         layout.addWidget(self.total_saida_label)
 
         # ===== RESULTADO FINAL =====
-        resultado_label = QLabel("💰 RESULTADO")
+        resultado_label = QLabel(" RESULTADO")
         resultado_label.setStyleSheet("font-weight:700;font-size:12px;margin-top:15px;")
         layout.addWidget(resultado_label)
 
-        self.lucro_label = QLabel("Lucro/Prejuízo: AOA 0,00")
+        self.lucro_label = QLabel("Lucro/Prejuízo: Kz 0,00")
         self.lucro_label.setFont(QFont(None, 14, QFont.Bold))
         layout.addWidget(self.lucro_label)
 
@@ -137,23 +137,23 @@ class BalancoView(QWidget):
             cur.execute("SELECT SUM(total) as total_vendas FROM vendas WHERE strftime('%Y-%m', data_venda) = ?", (ym,))
             r = cur.fetchone()
             total_vendas = r['total_vendas'] if r and r['total_vendas'] is not None else 0.0
-            self.vendas_label.setText(f"Vendas: AOA {total_vendas:,.2f}")
+            self.vendas_label.setText(f"Vendas: Kz {total_vendas:,.2f}")
 
             # Kumbu
             cur.execute("SELECT SUM(valor) as total_kumbu FROM transacoes_financeiras WHERE tipo = 'kumbu' AND strftime('%Y-%m', data_transacao) = ?", (ym,))
             r = cur.fetchone()
             total_kumbu = r['total_kumbu'] if r and r['total_kumbu'] is not None else 0.0
-            self.kumbu_label.setText(f"Kumbu: AOA {total_kumbu:,.2f}")
+            self.kumbu_label.setText(f"Kumbu: Kz {total_kumbu:,.2f}")
 
             # Empréstimo
             cur.execute("SELECT SUM(valor) as total_emprest FROM transacoes_financeiras WHERE tipo = 'emprestimo' AND strftime('%Y-%m', data_transacao) = ?", (ym,))
             r = cur.fetchone()
             total_emprest = r['total_emprest'] if r and r['total_emprest'] is not None else 0.0
-            self.emprestimo_label.setText(f"Empréstimo: AOA {total_emprest:,.2f}")
+            self.emprestimo_label.setText(f"Empréstimo: Kz {total_emprest:,.2f}")
 
             # Total de entradas
             total_entrada = total_vendas + total_kumbu + total_emprest
-            self.total_entrada_label.setText(f"Total Entradas: AOA {total_entrada:,.2f}")
+            self.total_entrada_label.setText(f"Total Entradas: Kz {total_entrada:,.2f}")
 
             # ===== SAÍDAS =====
             categorias = [
@@ -174,13 +174,13 @@ class BalancoView(QWidget):
                 r = cur.fetchone()
                 cat_total = r['cat_total'] if r and r['cat_total'] is not None else 0.0
                 total_saida += cat_total
-                label_widget.setText(f"{cat_name}: AOA {cat_total:,.2f}")
+                label_widget.setText(f"{cat_name}: Kz {cat_total:,.2f}")
 
-            self.total_saida_label.setText(f"Total Saídas: AOA {total_saida:,.2f}")
+            self.total_saida_label.setText(f"Total Saídas: Kz {total_saida:,.2f}")
 
             # ===== RESULTADO FINAL =====
             lucro = total_entrada - total_saida
-            self.lucro_label.setText(f"Lucro/Prejuízo: AOA {lucro:,.2f}")
+            self.lucro_label.setText(f"Lucro/Prejuízo: Kz {lucro:,.2f}")
             
             # Colorir resultado (verde = lucro, vermelho = prejuízo)
             if lucro >= 0:

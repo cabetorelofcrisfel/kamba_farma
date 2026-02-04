@@ -53,7 +53,7 @@ class DiarioView(QWidget):
         self.data_picker.setCalendarPopup(True)
         # Recalcular ao mudar data
         self.data_picker.dateChanged.connect(self.load_daily_report)
-        btn_atualizar = QPushButton("🔄 Atualizar")
+        btn_atualizar = QPushButton(" Atualizar")
         btn_atualizar.clicked.connect(self.load_daily_report)
         date_layout.addWidget(lbl_data)
         date_layout.addWidget(self.data_picker)

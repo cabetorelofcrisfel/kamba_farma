@@ -1,0 +1,247 @@
+from dataclasses import dataclass
+from pathlib import Path
+import importlib.util
+import sys
+from typing import Optional
+
+from PyQt5.QtWidgets import (
+    QWidget, QVBoxLayout, QLabel, QHBoxLayout, 
+    QPushButton, QStackedWidget
+)
+from PyQt5.QtCore import Qt
+
+
+@dataclass
+class ItemVenda:
+    id: int
+    venda_id: int
+    produto_id: int
+    quantidade: int
+    preco_unitario: float
+
+
+def _load_view_from_path(path: Path, class_name: str) -> Optional[QWidget]:
+    """Import `class_name` from `path` and return an instance, or None."""
+    try:
+        if not path.exists():
+            return None
+        spec = importlib.util.spec_from_file_location(path.stem, str(path))
+        if spec is None or spec.loader is None:
+            return None
+        module = importlib.util.module_from_spec(spec)
+        mod_name = f"_item_venda_dynamic_{path.stem}"
+        sys.modules[mod_name] = module
+        spec.loader.exec_module(module)
+        cls = getattr(module, class_name, None)
+        if cls is None:
+            return None
+        return cls()
+    except Exception:
+        return None
+
+
+class ItemVendaPage(QWidget):
+    """SPA container for item_venda-related views."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.views_dir = Path(__file__).parent / "item_venda"
+        self._setup_ui()
+
+        # Apply light theme
+        self.setStyleSheet("""
+            QWidget { 
+                background-color: #FFFFFF; 
+                color: #000000;
+                font-family: 'Segoe UI', Arial, sans-serif;
+            }
+            QStackedWidget {
+                background-color: #FFFFFF;
+                border: none;
+            }
+        """)
+
+    def _setup_ui(self):
+        main_layout = QHBoxLayout(self)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+
+        # Barra lateral de menu
+        menu_widget = QWidget()
+        menu_widget.setFixedWidth(250)
+        menu_layout = QVBoxLayout(menu_widget)
+        menu_layout.setContentsMargins(0, 0, 0, 0)
+        menu_layout.setSpacing(2)
+
+        # Título do menu
+        menu_title = QLabel(" MENU DE ITENS")
+        menu_title.setStyleSheet("""
+            font-size: 14px;
+            font-weight: bold;
+            color: #00BFA5;
+            padding: 15px 20px;
+            border-bottom: 1px solid #E6E6E6;
+        """)
+        menu_layout.addWidget(menu_title)
+
+        # Botões do menu
+        self.btn_adicionar = QPushButton(" ADICIONAR ITEM")
+        self.btn_lista = QPushButton(" LISTA DE ITENS")
+        self.btn_catalogo = QPushButton(" CATÁLOGO")
+        self.btn_estatisticas = QPushButton(" ESTATÍSTICAS")
+        self.btn_importar = QPushButton(" IMPORTAR")
+        self.btn_exportar = QPushButton(" EXPORTAR")
+
+        # Configurar botões
+        buttons = [
+            self.btn_adicionar, self.btn_lista, self.btn_catalogo,
+            self.btn_estatisticas, self.btn_importar, self.btn_exportar
+        ]
+        
+        for btn in buttons:
+            btn.setCursor(Qt.PointingHandCursor)
+            btn.setCheckable(True)
+            btn.setMinimumHeight(50)
+            btn.setStyleSheet("""
+                QPushButton {
+                    background-color: transparent;
+                    color: #6B7280;
+                    border: none;
+                    text-align: left;
+                    padding: 12px 20px;
+                    font-size: 13px;
+                    font-weight: 600;
+                    letter-spacing: 0.3px;
+                    border-left: 4px solid transparent;
+                }
+                QPushButton:checked {
+                    background-color: #FFF7EB;
+                    color: #00BFA5;
+                    border-left: 4px solid #00BFA5;
+                }
+                QPushButton:hover {
+                    background-color: rgba(0,0,0,0.03);
+                    color: #000000;
+                }
+            """)
+
+        # Adicionar botões ao layout
+        menu_layout.addWidget(self.btn_adicionar)
+        menu_layout.addWidget(self.btn_lista)
+        menu_layout.addWidget(self.btn_catalogo)
+        menu_layout.addWidget(self.btn_estatisticas)
+        menu_layout.addWidget(self.btn_importar)
+        menu_layout.addWidget(self.btn_exportar)
+        menu_layout.addStretch()
+
+        # Status bar na sidebar
+        status_widget = QWidget()
+        status_widget.setStyleSheet("""
+            background-color: #FFFFFF;
+            border-top: 1px solid #E6E6E6;
+            padding: 10px;
+        """)
+        status_layout = QVBoxLayout(status_widget)
+        status_layout.setContentsMargins(10, 10, 10, 10)
+        
+        status_label = QLabel(" Sistema de Itens\n🟢 Conectado")
+        status_label.setStyleSheet("""
+            font-size: 11px;
+            color: #6B7280;
+            line-height: 1.4;
+        """)
+        status_label.setAlignment(Qt.AlignCenter)
+        
+        status_layout.addWidget(status_label)
+        menu_layout.addWidget(status_widget)
+
+        # Área de conteúdo - StackedWidget
+        self.stack = QStackedWidget()
+        self._load_views()
+
+        # Conectar sinais
+        self.btn_adicionar.clicked.connect(lambda: self._select(0))
+        self.btn_lista.clicked.connect(lambda: self._select(1))
+        self.btn_catalogo.clicked.connect(lambda: self._select(2))
+        self.btn_estatisticas.clicked.connect(lambda: self._select(3))
+        self.btn_importar.clicked.connect(lambda: self._select(4))
+        self.btn_exportar.clicked.connect(lambda: self._select(5))
+
+        # Selecionar primeiro item
+        self.btn_adicionar.setChecked(True)
+
+        main_layout.addWidget(menu_widget)
+        main_layout.addWidget(self.stack, 1)
+
+    def _select(self, index: int):
+        """Seleciona a view pelo índice"""
+        buttons = [
+            self.btn_adicionar, self.btn_lista, self.btn_catalogo,
+            self.btn_estatisticas, self.btn_importar, self.btn_exportar
+        ]
+        
+        for i, btn in enumerate(buttons):
+            btn.setChecked(i == index)
+        
+        if 0 <= index < self.stack.count():
+            self.stack.setCurrentIndex(index)
+
+    def _load_views(self):
+        """Carrega dinamicamente todas as views"""
+        views = [
+            (self.views_dir / "adicionar_item.py", "AdicionarItemView"),
+            (self.views_dir / "lista_item.py", "ListaItemView"),
+            (self.views_dir / "catalogo_view.py", "CatalogoView"),
+            (self.views_dir / "estatisticas_view.py", "EstatisticasView"),
+            (self.views_dir / "importar_view.py", "ImportarView"),
+            (self.views_dir / "exportar_view.py", "ExportarView"),
+        ]
+
+        for path, class_name in views:
+            widget = _load_view_from_path(path, class_name)
+            if widget is None:
+                # Criar placeholder se a view não existir
+                placeholder = QLabel(
+                    f"<h3 style='color:#00BFA5;'> VIEW DE ITENS</h3>"
+                    f"<p style='color:#B0B0B0;'>"
+                    f"Classe: <b>{class_name}</b><br>"
+                    f"Arquivo: {path.name}<br><br>"
+                    f"Crie este arquivo na pasta <code>item_venda/</code> "
+                    f"com uma classe chamada <code>{class_name}</code> "
+                    f"que herde de <code>QWidget</code>."
+                    f"</p>"
+                )
+                placeholder.setAlignment(Qt.AlignCenter)
+                placeholder.setStyleSheet("""
+                    QLabel {
+                        background-color: #FFFFFF;
+                        border-radius: 10px;
+                        border: 1px solid #E6E6E6;
+                        padding: 40px;
+                        margin: 20px;
+                    }
+                """)
+                self.stack.addWidget(placeholder)
+            else:
+                # Configurar estilo da view carregada
+                widget.setStyleSheet("""
+                    QWidget {
+                        background-color: #FFFFFF;
+                        color: #000000;
+                    }
+                """)
+                self.stack.addWidget(widget)
+
+
+if __name__ == '__main__':
+    from PyQt5.QtWidgets import QApplication
+    import sys
+
+    app = QApplication(sys.argv)
+    app.setStyle('Fusion')
+    
+    w = ItemVendaPage()
+    w.resize(1200, 800)
+    w.setWindowTitle("Kamba Farma - Gerenciamento de Itens de Venda")
+    w.show()
+    sys.exit(app.exec_())

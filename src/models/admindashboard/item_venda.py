@@ -74,23 +74,23 @@ class ItemVendaPage(QWidget):
         menu_layout.setSpacing(2)
 
         # Título do menu
-        menu_title = QLabel("📦 MENU DE ITENS")
-        menu_title.setStyleSheet("""
+        menu_title = QLabel(" MENU DE ITENS")
+        menu_title.setStyleSheet(f"""
             font-size: 14px;
             font-weight: bold;
-            color: #00BFA5;
+            color: {PRIMARY_COLOR};
             padding: 15px 20px;
             border-bottom: 1px solid #E6E6E6;
         """)
         menu_layout.addWidget(menu_title)
 
         # Botões do menu
-        self.btn_adicionar = QPushButton("➕ ADICIONAR ITEM")
-        self.btn_lista = QPushButton("📋 LISTA DE ITENS")
-        self.btn_catalogo = QPushButton("🛍️ CATÁLOGO")
-        self.btn_estatisticas = QPushButton("📊 ESTATÍSTICAS")
-        self.btn_importar = QPushButton("📥 IMPORTAR")
-        self.btn_exportar = QPushButton("📤 EXPORTAR")
+        self.btn_adicionar = QPushButton(" ADICIONAR ITEM")
+        self.btn_lista = QPushButton(" LISTA DE ITENS")
+        self.btn_catalogo = QPushButton(" CATÁLOGO")
+        self.btn_estatisticas = QPushButton(" ESTATÍSTICAS")
+        self.btn_importar = QPushButton(" IMPORTAR")
+        self.btn_exportar = QPushButton(" EXPORTAR")
 
         # Configurar botões
         buttons = [
@@ -115,9 +115,9 @@ class ItemVendaPage(QWidget):
                     border-left: 4px solid transparent;
                 }
                 QPushButton:checked {
-                    background-color: #FFF7EB;
-                    color: #00BFA5;
-                    border-left: 4px solid #00BFA5;
+                    background-color: {TEAL_LIGHT};
+                    color: {PRIMARY_COLOR};
+                    border-left: 4px solid {PRIMARY_COLOR};
                 }
                 QPushButton:hover {
                     background-color: rgba(0,0,0,0.03);
@@ -144,7 +144,7 @@ class ItemVendaPage(QWidget):
         status_layout = QVBoxLayout(status_widget)
         status_layout.setContentsMargins(10, 10, 10, 10)
         
-        status_label = QLabel("✅ Sistema de Itens\n🟢 Conectado")
+        status_label = QLabel(" Sistema de Itens\n🟢 Conectado")
         status_label.setStyleSheet("""
             font-size: 11px;
             color: #6B7280;
@@ -202,7 +202,7 @@ class ItemVendaPage(QWidget):
             if widget is None:
                 # Criar placeholder se a view não existir
                 placeholder = QLabel(
-                    f"<h3 style='color:#00BFA5;'>📦 VIEW DE ITENS</h3>"
+                    f"<h3 style='color:{PRIMARY_COLOR};'> VIEW DE ITENS</h3>"
                     f"<p style='color:#B0B0B0;'>"
                     f"Classe: <b>{class_name}</b><br>"
                     f"Arquivo: {path.name}<br><br>"

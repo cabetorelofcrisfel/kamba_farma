@@ -167,7 +167,7 @@ class DevolucaoDeProdutoView(QWidget):
         layout = QVBoxLayout(self)
 
         top = QHBoxLayout()
-        top.addWidget(QLabel("🔎 Nome do Cliente:"))
+        top.addWidget(QLabel(" Nome do Cliente:"))
         self.client_input = QLineEdit()
         self.client_input.setPlaceholderText("Digite o nome do cliente...")
         top.addWidget(self.client_input, 1)

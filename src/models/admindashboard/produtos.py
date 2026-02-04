@@ -17,20 +17,19 @@ if str(_ROOT) not in sys.path:
 from src.config.paths import DB_DIR
 from database.db import get_db_path, connect
 
-# Paleta de cores moderna
-PRIMARY_COLOR = "#4A6CF7"
+from colors import *
+# Local aliases
 SECONDARY_COLOR = "#10B981"
-DANGER_COLOR = "#EF4444"
+DANGER_COLOR = ACCENT_RED
 WARNING_COLOR = "#F59E0B"
 INFO_COLOR = "#3B82F6"
-BG_COLOR = "#F8FAFD"
-CARD_BG = "#FFFFFF"
-BORDER_COLOR = "#E8EEF5"
-TEXT_PRIMARY = "#1A1D29"
+BG_COLOR = BACKGROUND_GRAY
+CARD_BG = WHITE
+BORDER_COLOR = BORDER_COLOR
+TEXT_PRIMARY = TEXT_PRIMARY
 TEXT_SECONDARY = "#6B7280"
 TEXT_LIGHT = "#9CA3AF"
 SUCCESS_COLOR = "#10B981"
-
 
 class ProdutosView(QWidget):
     """Visualização moderna de produtos com baixo stock."""
@@ -95,7 +94,7 @@ class ProdutosView(QWidget):
         header_layout = QVBoxLayout(header_frame)
         header_layout.setSpacing(12)
         
-        title = QLabel("⚠️ Produtos com Baixo Stock")
+        title = QLabel(" Produtos com Baixo Stock")
         title_font = QFont("Segoe UI", 22, QFont.Bold)
         title.setFont(title_font)
         title.setStyleSheet(f"color: {TEXT_PRIMARY};")
@@ -106,8 +105,8 @@ class ProdutosView(QWidget):
         stats_layout = QHBoxLayout()
         stats_layout.setSpacing(20)
         
-        self.stats_total, self.stats_total_value = self._create_stat_card("📊 Total Produtos", "0", INFO_COLOR)
-        self.stats_critical, self.stats_critical_value = self._create_stat_card("🔴 Crítico", "0", DANGER_COLOR)
+        self.stats_total, self.stats_total_value = self._create_stat_card(" Total Produtos", "0", INFO_COLOR)
+        self.stats_critical, self.stats_critical_value = self._create_stat_card(" Crítico", "0", DANGER_COLOR)
         self.stats_warning, self.stats_warning_value = self._create_stat_card("🟠 Atenção", "0", WARNING_COLOR)
         self.stats_low, self.stats_low_value = self._create_stat_card("🟡 Baixo", "0", "#FBBF24")
 
@@ -124,10 +123,10 @@ class ProdutosView(QWidget):
         filter_label = QLabel("Filtrar por urgência:")
         filter_label.setStyleSheet(f"color: {TEXT_PRIMARY}; font-weight: 600;")
         
-        self.filter_critical = QPushButton("🔴 Crítico")
+        self.filter_critical = QPushButton(" Crítico")
         self.filter_warning = QPushButton("🟠 Atenção")
         self.filter_low = QPushButton("🟡 Baixo")
-        self.filter_all = QPushButton("📋 Todos")
+        self.filter_all = QPushButton(" Todos")
         
         for btn in [self.filter_critical, self.filter_warning, self.filter_low, self.filter_all]:
             btn.setMinimumHeight(36)
@@ -163,7 +162,7 @@ class ProdutosView(QWidget):
         filter_layout.addStretch()
         
         # Botão de atualizar
-        refresh_btn = QPushButton("🔄 Atualizar")
+        refresh_btn = QPushButton(" Atualizar")
         refresh_btn.setMinimumHeight(36)
         refresh_btn.setCursor(Qt.PointingHandCursor)
         refresh_btn.setStyleSheet(f"""
@@ -224,7 +223,7 @@ class ProdutosView(QWidget):
         legend_layout = QHBoxLayout()
         legend_layout.setSpacing(15)
         
-        critical_legend = QLabel("🔴 Estoque ≤ 20% do mínimo")
+        critical_legend = QLabel(" Estoque ≤ 20% do mínimo")
         critical_legend.setStyleSheet(f"color: {DANGER_COLOR}; font-size: 12px;")
         
         warning_legend = QLabel("🟠 Estoque ≤ 50% do mínimo")
@@ -398,10 +397,10 @@ class ProdutosView(QWidget):
                 pix = pix.scaled(85, 85, Qt.KeepAspectRatio, Qt.SmoothTransformation)
                 img.setPixmap(pix)
             else:
-                img.setText("📦")
+                img.setText("")
                 img.setStyleSheet("font-size: 36px; color: #9CA3AF;")
         else:
-            img.setText("📦")
+            img.setText("")
             img.setStyleSheet("font-size: 36px; color: #9CA3AF;")
         
         img_layout.addWidget(img)
@@ -484,7 +483,7 @@ class ProdutosView(QWidget):
         # Valores numéricos
         values_layout = QHBoxLayout()
         
-        stock_current = QLabel(f"📦 {stock}")
+        stock_current = QLabel(f" {stock}")
         stock_current.setStyleSheet(f"""
             QLabel {{
                 font-weight: 700;
@@ -493,7 +492,7 @@ class ProdutosView(QWidget):
             }}
         """)
         
-        stock_min = QLabel(f"🎯 {stock_minimo}")
+        stock_min = QLabel(f" {stock_minimo}")
         stock_min.setStyleSheet(f"""
             QLabel {{
                 font-weight: 600;
@@ -511,7 +510,7 @@ class ProdutosView(QWidget):
         stock_layout.addLayout(values_layout)
         
         # Botão de ação
-        action_btn = QPushButton("📝 Repor Stock")
+        action_btn = QPushButton(" Repor Stock")
         action_btn.setCursor(Qt.PointingHandCursor)
         action_btn.setStyleSheet(f"""
             QPushButton {{
@@ -576,7 +575,7 @@ class ProdutosView(QWidget):
 
             if not rows:
                 # Mensagem quando não há produtos com baixo stock
-                no_products = QLabel("✅ Todos os produtos estão com stock adequado!")
+                no_products = QLabel(" Todos os produtos estão com stock adequado!")
                 no_products.setAlignment(Qt.AlignCenter)
                 no_products_font = QFont()
                 no_products_font.setPointSize(16)
@@ -615,7 +614,7 @@ class ProdutosView(QWidget):
             """)
             error_layout = QVBoxLayout(error_container)
             
-            error_icon = QLabel("🚨")
+            error_icon = QLabel("")
             error_icon.setAlignment(Qt.AlignCenter)
             error_icon.setStyleSheet("font-size: 32px; margin-bottom: 10px;")
             

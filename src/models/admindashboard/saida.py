@@ -88,7 +88,7 @@ class SaidaDialog(QDialog):
         valor_layout = QHBoxLayout()
         valor_layout.addWidget(QLabel("Valor:"))
         self.valor_field = QDoubleSpinBox()
-        self.valor_field.setPrefix("AOA ")
+        self.valor_field.setPrefix("Kz ")
         self.valor_field.setDecimals(2)
         self.valor_field.setMaximum(1e12)
         valor_layout.addWidget(self.valor_field)
@@ -170,7 +170,7 @@ class SaidaView(QWidget):
         btn_calc.clicked.connect(self.compute_month_stats)
         # calcular automaticamente ao mudar mês
         self.mes_picker.dateChanged.connect(lambda _: self.compute_month_stats())
-        btn_atualizar = QPushButton("🔄 Atualizar")
+        btn_atualizar = QPushButton(" Atualizar")
         btn_atualizar.clicked.connect(self.compute_month_stats)
         analise_layout.addWidget(lbl_mes)
         analise_layout.addWidget(self.mes_picker)
@@ -208,17 +208,17 @@ class SaidaView(QWidget):
         # Área de resultados do mês: totais por categoria e total geral
         results_layout = QVBoxLayout()
 
-        self.total_label = QLabel("Total saído no mês: AOA 0,00")
+        self.total_label = QLabel("Total saído no mês: Kz 0,00")
         self.total_label.setFont(QFont(None, 12, QFont.Bold))
         results_layout.addWidget(self.total_label)
 
         # Subtotais por categoria
-        self.transferencia_label = QLabel("Transferência: AOA 0,00")
-        self.stock_label = QLabel("Compra Stock: AOA 0,00")
-        self.pessoal_label = QLabel("Uso Pessoal: AOA 0,00")
-        self.passagem_label = QLabel("Passagem: AOA 0,00")
-        self.salario_label = QLabel("Salário: AOA 0,00")
-        self.outro_label = QLabel("Outro: AOA 0,00")
+        self.transferencia_label = QLabel("Transferência: Kz 0,00")
+        self.stock_label = QLabel("Compra Stock: Kz 0,00")
+        self.pessoal_label = QLabel("Uso Pessoal: Kz 0,00")
+        self.passagem_label = QLabel("Passagem: Kz 0,00")
+        self.salario_label = QLabel("Salário: Kz 0,00")
+        self.outro_label = QLabel("Outro: Kz 0,00")
 
         results_layout.addWidget(self.transferencia_label)
         results_layout.addWidget(self.stock_label)
@@ -265,7 +265,7 @@ class SaidaView(QWidget):
             cur.execute("SELECT SUM(valor) as total_saida FROM transacoes_financeiras WHERE tipo = 'saida' AND strftime('%Y-%m', data_transacao) = ?", (ym,))
             r = cur.fetchone()
             total_saida = r['total_saida'] if r and r['total_saida'] is not None else 0.0
-            self.total_label.setText(f"Total saído no mês: AOA {total_saida:,.2f}")
+            self.total_label.setText(f"Total saído no mês: Kz {total_saida:,.2f}")
 
             # Totais por categoria (procura pela descrição que começa com a categoria)
             categorias = [
@@ -284,7 +284,7 @@ class SaidaView(QWidget):
                 )
                 r = cur.fetchone()
                 cat_total = r['cat_total'] if r and r['cat_total'] is not None else 0.0
-                label_widget.setText(f"{cat_name}: AOA {cat_total:,.2f}")
+                label_widget.setText(f"{cat_name}: Kz {cat_total:,.2f}")
 
             # Carregar tabela de saídas
             cur.execute("SELECT data_transacao, descricao, valor FROM transacoes_financeiras WHERE tipo = 'saida' AND strftime('%Y-%m', data_transacao) = ? ORDER BY data_transacao DESC LIMIT 100", (ym,))
@@ -296,7 +296,7 @@ class SaidaView(QWidget):
                 self.table.insertRow(row)
                 self.table.setItem(row, 0, QTableWidgetItem(str(r['data_transacao'])))
                 self.table.setItem(row, 1, QTableWidgetItem(str(r['descricao'] or '')))
-                self.table.setItem(row, 2, QTableWidgetItem(f"AOA {r['valor']:,.2f}"))
+                self.table.setItem(row, 2, QTableWidgetItem(f"Kz {r['valor']:,.2f}"))
 
             conn.close()
 
@@ -344,7 +344,7 @@ class SaidaView(QWidget):
                 self.table.insertRow(row)
                 self.table.setItem(row, 0, QTableWidgetItem(str(r['data_transacao'])))
                 self.table.setItem(row, 1, QTableWidgetItem(str(r['descricao'] or '')))
-                self.table.setItem(row, 2, QTableWidgetItem(f"AOA {r['valor']:,.2f}"))
+                self.table.setItem(row, 2, QTableWidgetItem(f"Kz {r['valor']:,.2f}"))
             conn.close()
         except Exception:
             pass

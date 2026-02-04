@@ -41,7 +41,7 @@ class CatalogoView(QWidget):
         title_container.setFrameShape(QFrame.NoFrame)
         title_layout = QVBoxLayout(title_container)
         
-        title = QLabel("🛍️ Catálogo de Produtos")
+        title = QLabel(" Catálogo de Produtos")
         title.setAlignment(Qt.AlignCenter)
         title_font = QFont()
         title_font.setPointSize(22)
@@ -164,10 +164,10 @@ class CatalogoView(QWidget):
                 # Centralizar a imagem
                 img.setAlignment(Qt.AlignCenter)
             else:
-                img.setText("📦")
+                img.setText("")
                 img.setStyleSheet("font-size: 48px; color: #bdc3c7;")
         else:
-            img.setText("📦")
+            img.setText("")
             img.setStyleSheet("font-size: 48px; color: #bdc3c7;")
         
         img_layout.addWidget(img)
@@ -187,7 +187,7 @@ class CatalogoView(QWidget):
         """)
         
         # Preço
-        price_label = QLabel(f"AOA {price:,.2f}")
+        price_label = QLabel(f"Kz {price:,.2f}")
         price_label.setAlignment(Qt.AlignCenter)
         price_label.setStyleSheet("""
             QLabel {
@@ -272,7 +272,7 @@ class CatalogoView(QWidget):
             """)
             error_layout = QVBoxLayout(error_container)
             
-            error_icon = QLabel("⚠️")
+            error_icon = QLabel("")
             error_icon.setAlignment(Qt.AlignCenter)
             error_icon.setStyleSheet("font-size: 32px; margin-bottom: 10px;")
             

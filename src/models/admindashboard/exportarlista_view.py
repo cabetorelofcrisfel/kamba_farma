@@ -7,7 +7,7 @@ class ExportListPage(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         layout = QVBoxLayout(self)
-        label = QLabel("📤 Exportar Lista\n(Implementar opções de exportação CSV/XLS)")
+        label = QLabel(" Exportar Lista\n(Implementar opções de exportação CSV/XLS)")
         label.setAlignment(Qt.AlignCenter)
         layout.addWidget(label)
         layout.addStretch()

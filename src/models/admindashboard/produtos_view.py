@@ -25,7 +25,7 @@ class EditProductDialog(QDialog):
     def __init__(self, produto_id, parent=None):
         super().__init__(parent)
         self.produto_id = produto_id
-        self.setWindowTitle("✏️ Editar Produto")
+        self.setWindowTitle(" Editar Produto")
         self.setMinimumWidth(500)
         self.setStyleSheet("""
             QDialog {
@@ -175,7 +175,7 @@ class EditProductDialog(QDialog):
         button_layout.setSpacing(15)
         button_layout.addStretch()
 
-        cancel = QPushButton("❌ Cancelar")
+        cancel = QPushButton(" Cancelar")
         cancel.setStyleSheet("""
             QPushButton {
                 padding: 10px 20px;
@@ -192,7 +192,7 @@ class EditProductDialog(QDialog):
         """)
         cancel.clicked.connect(self.reject)
 
-        save = QPushButton("💾 Salvar Alterações")
+        save = QPushButton(" Salvar Alterações")
         save.setStyleSheet("""
             QPushButton {
                 padding: 10px 25px;
@@ -272,12 +272,12 @@ class EditProductDialog(QDialog):
             
             QMessageBox.information(
                 self, 
-                "✅ Sucesso", 
+                " Sucesso", 
                 "Produto atualizado com sucesso!"
             )
             self.accept()
         except Exception as e:
-            QMessageBox.critical(self, "❌ Erro", f"Erro ao salvar: {str(e)}")
+            QMessageBox.critical(self, " Erro", f"Erro ao salvar: {str(e)}")
 
 
 class ProdutosView(QWidget):
@@ -313,7 +313,7 @@ class ProdutosView(QWidget):
         header_layout = QHBoxLayout()
         
         title_layout = QVBoxLayout()
-        title = QLabel("📦 Gestão de Produtos")
+        title = QLabel(" Gestão de Produtos")
         title_font = QFont()
         title_font.setPointSize(22)
         title_font.setWeight(QFont.Bold)
@@ -334,7 +334,7 @@ class ProdutosView(QWidget):
         header_layout.addStretch()
         
         # Botão de adicionar produto
-        add_btn = QPushButton("➕ Adicionar Produto")
+        add_btn = QPushButton(" Adicionar Produto")
         add_btn.setStyleSheet("""
             QPushButton {
                 padding: 10px 20px;
@@ -372,7 +372,7 @@ class ProdutosView(QWidget):
         filter_layout = QHBoxLayout(filter_frame)
         
         search_input = QLineEdit()
-        search_input.setPlaceholderText("🔍 Pesquisar por nome, código...")
+        search_input.setPlaceholderText(" Pesquisar por nome, código...")
         search_input.setStyleSheet("""
             QLineEdit {
                 padding: 10px 15px;
@@ -406,7 +406,7 @@ class ProdutosView(QWidget):
         filter_layout.addWidget(filter_combo)
         filter_layout.addStretch()
         
-        refresh_btn = QPushButton("🔄 Atualizar")
+        refresh_btn = QPushButton(" Atualizar")
         refresh_btn.setStyleSheet("""
             QPushButton {
                 padding: 8px 20px;
@@ -512,7 +512,7 @@ class ProdutosView(QWidget):
         footer_layout.addWidget(self.stats_label)
         footer_layout.addStretch()
         
-        export_btn = QPushButton("📤 Exportar Lista")
+        export_btn = QPushButton(" Exportar Lista")
         export_btn.setStyleSheet("""
             QPushButton {
                 padding: 6px 15px;
@@ -607,7 +607,7 @@ class ProdutosView(QWidget):
                 self.table.setCellWidget(i, 4, status_widget)
 
                 # Botão Editar - AUMENTADO o tamanho
-                edit_btn = QPushButton("✏️ Editar")
+                edit_btn = QPushButton(" Editar")
                 edit_btn.setToolTip("Editar produto")
                 edit_btn.setFixedHeight(35)  # Altura fixa
                 edit_btn.setStyleSheet("""
@@ -632,7 +632,7 @@ class ProdutosView(QWidget):
                 self.table.setCellWidget(i, 5, edit_btn)
 
                 # Botão Excluir - AUMENTADO o tamanho
-                delete_btn = QPushButton("🗑️ Excluir")
+                delete_btn = QPushButton(" Excluir")
                 delete_btn.setToolTip("Excluir produto")
                 delete_btn.setFixedHeight(35)  # Altura fixa
                 delete_btn.setStyleSheet("""
@@ -659,12 +659,12 @@ class ProdutosView(QWidget):
           
 
         except Exception as e:
-            QMessageBox.critical(self, "❌ Erro", f"Erro ao carregar produtos: {e}")
+            QMessageBox.critical(self, " Erro", f"Erro ao carregar produtos: {e}")
 
     def _on_delete(self, produto_id):
         msg_box = QMessageBox()
         msg_box.setIcon(QMessageBox.Warning)
-        msg_box.setWindowTitle("⚠️ Confirmar Exclusão")
+        msg_box.setWindowTitle(" Confirmar Exclusão")
         msg_box.setText("Deseja realmente desativar este produto?")
         msg_box.setInformativeText("O produto será marcado como inativo e não aparecerá mais no catálogo.")
         msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
@@ -725,12 +725,12 @@ class ProdutosView(QWidget):
             
             QMessageBox.information(
                 self, 
-                "✅ Sucesso", 
+                " Sucesso", 
                 "Produto desativado com sucesso!"
             )
             self.load_products()
         except Exception as e:
-            QMessageBox.critical(self, "❌ Erro", f"Erro ao excluir produto: {e}")
+            QMessageBox.critical(self, " Erro", f"Erro ao excluir produto: {e}")
 
     def _on_edit(self, produto_id):
         dlg = EditProductDialog(produto_id, self)

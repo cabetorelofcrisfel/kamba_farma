@@ -9,40 +9,31 @@ views are represented by placeholders so the UI remains runnable.
 from pathlib import Path
 import importlib.util
 import sys
-from typing import Optional
+from typing import Optional, List
 
 from PyQt5.QtWidgets import (
-    QWidget, QHBoxLayout, QVBoxLayout, QPushButton, QStackedWidget, 
-    QLabel, QApplication, QFrame, QSpacerItem, QSizePolicy
+    QWidget, QHBoxLayout, QVBoxLayout, QPushButton, QStackedWidget,
+    QLabel, QApplication, QFrame, QGraphicsDropShadowEffect
 )
-from PyQt5.QtCore import Qt, QPropertyAnimation, QTimer
+from PyQt5.QtCore import Qt, QPropertyAnimation, QEasingCurve, pyqtSignal
 from PyQt5.QtGui import QFont, QColor, QPainter, QPainterPath
 
-# Paleta de cores - TEMA CLARO MODERNO
-MILK_BG = "#FFFBF5"  # Fundo leitoso
-CARD_BG = "#FFFFFF"  # Branco puro para cards
-LIGHT_BORDER = "#E8E8E8"  # Borda cinza claro
-ACCENT_BORDER = "#00BFA5"  # Borda de destaque teal
-TEXT_PRIMARY = "#2C3E50"  # Azul escuro para texto principal
-TEXT_SECONDARY = "#7F8C8D"  # Cinza para texto secundário
-TEXT_LIGHT = "#95A5A6"  # Cinza mais claro
-TEAL_PRIMARY = "#00BFA5"  # Teal principal
-TEAL_LIGHT = "#E0F7FA"  # Teal muito claro para fundo
-TEAL_HOVER = "#B2EBF2"  # Teal para hover
-GREEN_SUCCESS = "#2ECC71"  # Verde moderno
-RED_ERROR = "#E74C3C"  # Vermelho moderno
-PURPLE = "#9B59B6"  # Roxo moderno
-BLUE_INFO = "#3498DB"  # Azul moderno
-ORANGE_ALERT = "#F39C12"  # Laranja moderno
-SHADOW_COLOR = "#00000010"  # Sombra sutil
+from colors import *
 
 
 class RoundedFrame(QFrame):
-    """Frame com cantos arredondados."""
-    def __init__(self, radius=12, parent=None):
+    """Frame com cantos arredondados e sombra."""
+    def __init__(self, radius=16, parent=None):
         super().__init__(parent)
         self.radius = radius
         self.setAttribute(Qt.WA_TranslucentBackground)
+        
+        # Adicionar sombra
+        shadow = QGraphicsDropShadowEffect()
+        shadow.setBlurRadius(20)
+        shadow.setColor(QColor(SHADOW_COLOR))
+        shadow.setOffset(0, 4)
+        self.setGraphicsEffect(shadow)
         
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -53,21 +44,28 @@ class RoundedFrame(QFrame):
         painter.setClipPath(path)
         
         painter.fillRect(self.rect(), QColor(CARD_BG))
-        painter.setPen(QColor(LIGHT_BORDER))
+        
+        # Borda suave
+        painter.setPen(QColor(BORDER_COLOR))
         painter.drawRoundedRect(0, 0, self.width()-1, self.height()-1, self.radius, self.radius)
 
 
-class ModernButton(QPushButton):
-    """Botão moderno com efeitos."""
+class ModernNavButton(QPushButton):
+    """Botão de navegação moderno."""
     def __init__(self, text="", icon="", parent=None):
         super().__init__(parent)
         self.icon_text = icon
-        self.base_color = TEAL_PRIMARY
         self.is_selected = False
-        self.setText(f"{icon} {text}")
+        
+        self.setText(f"{icon}  {text}")
         self.setCursor(Qt.PointingHandCursor)
         self.setMinimumHeight(48)
-        self.setMinimumWidth(140)
+        self.setMinimumWidth(160)
+        
+        # Configurar fonte
+        font = QFont("Segoe UI", 11, QFont.Medium)
+        self.setFont(font)
+        
         self._update_style()
         
     def setSelected(self, selected):
@@ -76,45 +74,137 @@ class ModernButton(QPushButton):
         
     def _update_style(self):
         if self.is_selected:
+            # Botão selecionado
             self.setStyleSheet(f"""
                 QPushButton {{
-                    background-color: {TEAL_PRIMARY};
+                    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                                              stop:0 {PRIMARY_COLOR}, stop:1 {ACCENT_COLOR});
                     color: white;
-                    border: 2px solid {TEAL_PRIMARY};
+                    border: none;
                     border-radius: 10px;
-                    padding: 12px 24px;
-                    font-size: 14px;
+                    padding: 14px 16px;
+                    font-size: 13px;
                     font-weight: 600;
-                    font-family: 'Segoe UI', 'Inter', Arial, sans-serif;
-                    transition: all 0.2s ease;
+                    text-align: center;
                 }}
                 QPushButton:hover {{
-                    background-color: {TEAL_PRIMARY}DD;
-                    transform: translateY(-1px);
-                    box-shadow: 0 6px 16px {TEAL_PRIMARY}40;
+                    background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                                              stop:0 #5A7AF9, stop:1 #9D7AF9);
                 }}
             """)
         else:
+            # Botão normal
             self.setStyleSheet(f"""
                 QPushButton {{
                     background-color: {CARD_BG};
                     color: {TEXT_SECONDARY};
-                    border: 1.5px solid {LIGHT_BORDER};
+                    border: 1.5px solid {BORDER_COLOR};
                     border-radius: 10px;
-                    padding: 12px 24px;
-                    font-size: 14px;
+                    padding: 14px 16px;
+                    font-size: 13px;
                     font-weight: 600;
-                    font-family: 'Segoe UI', 'Inter', Arial, sans-serif;
-                    transition: all 0.2s ease;
+                    text-align: center;
                 }}
                 QPushButton:hover {{
-                    background-color: {TEAL_LIGHT};
-                    color: {TEAL_PRIMARY};
-                    border-color: {TEAL_PRIMARY};
-                    transform: translateY(-1px);
-                    box-shadow: 0 4px 12px {SHADOW_COLOR};
+                    background-color: {BG_COLOR};
+                    color: {TEXT_PRIMARY};
+                    border-color: {PRIMARY_COLOR}40;
                 }}
             """)
+
+
+class HorizontalNavBar(QFrame):
+    """Barra de navegação horizontal."""
+    itemSelected = pyqtSignal(int)
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedHeight(100)
+        self.setStyleSheet(f"""
+            QFrame {{
+                background-color: {CARD_BG};
+                border-radius: 16px;
+                border: 1px solid {BORDER_COLOR};
+            }}
+        """)
+        
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(24, 20, 24, 20)
+        layout.setSpacing(12)
+        
+        # Título da navegação
+        title = QLabel(" Navegação")
+        title.setStyleSheet(f"""
+            color: {TEXT_PRIMARY};
+            font-size: 16px;
+            font-weight: 700;
+            margin-right: 24px;
+        """)
+        layout.addWidget(title)
+        
+        # Botões de navegação
+        self.buttons: List[ModernNavButton] = []
+        nav_items = [
+            ("", "Adicionar Produto", "Adicionar novo produto ao sistema"),
+            ("", "Lista de Produtos", "Visualizar todos os produtos"),
+            ("", "Catálogo", "Visualizar catálogo de produtos"),
+            ("", "Produtos em Destaque", "Gerenciar produtos em destaque"),
+        ]
+        
+        for icon, text, tooltip in nav_items:
+            btn = ModernNavButton(text, icon)
+            btn.setToolTip(tooltip)
+            btn.clicked.connect(lambda checked, idx=len(self.buttons): self._on_item_clicked(idx))
+            self.buttons.append(btn)
+            layout.addWidget(btn)
+        
+        layout.addStretch()
+        
+        # Selecionar primeiro item
+        if self.buttons:
+            self.buttons[0].setSelected(True)
+    
+    def _on_item_clicked(self, index):
+        """Lida com clique em item da navegação."""
+        for i, btn in enumerate(self.buttons):
+            btn.setSelected(i == index)
+        self.itemSelected.emit(index)
+
+
+class HeaderBar(QFrame):
+    """Barra de cabeçalho superior."""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedHeight(100)
+        self.setStyleSheet(f"""
+            QFrame {{
+                background-color: {CARD_BG};
+                border-radius: 16px;
+                border: 1px solid {BORDER_COLOR};
+            }}
+        """)
+        
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(32, 0, 32, 0)
+        
+        # Informações do título
+        title_layout = QVBoxLayout()
+        title_layout.setSpacing(6)
+        
+        self.title_label = QLabel("Gestão de Produtos")
+        title_font = QFont("Segoe UI", 22, QFont.Bold)
+        self.title_label.setFont(title_font)
+        self.title_label.setStyleSheet(f"color: {TEXT_PRIMARY};")
+        
+        self.subtitle_label = QLabel("Sistema de controle de produtos e catálogo")
+        self.subtitle_label.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 14px;")
+        
+        title_layout.addWidget(self.title_label)
+        title_layout.addWidget(self.subtitle_label)
+        title_layout.addStretch()
+        
+        layout.addLayout(title_layout)
+        layout.addStretch()
 
 
 def _load_view_from_path(path: Path, class_name: str) -> Optional[QWidget]:
@@ -133,8 +223,85 @@ def _load_view_from_path(path: Path, class_name: str) -> Optional[QWidget]:
         if cls is None:
             return None
         return cls()
-    except Exception:
+    except Exception as e:
+        print(f"Error loading {path}: {e}")
         return None
+
+
+class ContentPlaceholder(QWidget):
+    """Placeholder estilizado para views não implementadas."""
+    def __init__(self, title, filename, classname, parent=None):
+        super().__init__(parent)
+        self.setStyleSheet(f"""
+            QWidget {{
+                background-color: {CARD_BG};
+                border-radius: 16px;
+                border: 2px dashed {BORDER_COLOR};
+            }}
+        """)
+        
+        # Adicionar sombra
+        shadow = QGraphicsDropShadowEffect()
+        shadow.setBlurRadius(30)
+        shadow.setColor(QColor(SHADOW_COLOR))
+        shadow.setOffset(0, 8)
+        self.setGraphicsEffect(shadow)
+        
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(60, 60, 60, 60)
+        layout.setAlignment(Qt.AlignCenter)
+        
+        # Ícone
+        icon = QLabel("")
+        icon.setStyleSheet(f"""
+            font-size: 72px;
+            margin-bottom: 24px;
+        """)
+        layout.addWidget(icon, 0, Qt.AlignCenter)
+        
+        # Título
+        title_label = QLabel(title)
+        title_font = QFont("Segoe UI", 20, QFont.Bold)
+        title_label.setFont(title_font)
+        title_label.setStyleSheet(f"color: {TEXT_PRIMARY}; margin-bottom: 12px;")
+        layout.addWidget(title_label, 0, Qt.AlignCenter)
+        
+        # Descrição
+        description = QLabel(
+            f"<div style='text-align: center; color: {TEXT_SECONDARY}; font-size: 14px; line-height: 1.6;'>"
+            f"Esta funcionalidade está em desenvolvimento.<br><br>"
+            f"<span style='color: {TEXT_LIGHT}; font-size: 12px;'>"
+            f"Para implementar, crie o arquivo:<br>"
+            f"<code style='background-color: #F0F7FF; padding: 4px 8px; border-radius: 4px;'>"
+            f"produto/{filename}</code><br><br>"
+            f"com uma classe chamada<br>"
+            f"<code style='background-color: #F0F7FF; padding: 4px 8px; border-radius: 4px;'>"
+            f"{classname}</code><br>"
+            f"que herde de <code>QWidget</code>."
+            f"</span>"
+            f"</div>"
+        )
+        description.setWordWrap(True)
+        layout.addWidget(description)
+        
+        # Botão de exemplo
+        example_btn = QPushButton(" Ver exemplo de código")
+        example_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: #F0F7FF;
+                color: {PRIMARY_COLOR};
+                border: 1.5px solid {PRIMARY_COLOR}40;
+                border-radius: 8px;
+                padding: 10px 20px;
+                font-weight: 600;
+                margin-top: 24px;
+            }}
+            QPushButton:hover {{
+                background-color: #E0F2FE;
+            }}
+        """)
+        example_btn.setCursor(Qt.PointingHandCursor)
+        layout.addWidget(example_btn, 0, Qt.AlignCenter)
 
 
 class ProdutoPage(QWidget):
@@ -143,258 +310,218 @@ class ProdutoPage(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.views_dir = Path(__file__).parent / "."
-        self.views_dir1 = Path(__file__).parent / "produtos_view.py"
-        self._setup_ui()
-        self._apply_modern_styles()
+        # Initialize loaded_views before setup_ui because _load_views accesses it
+        self.loaded_views = {}
+        self.setup_ui()
 
-    def _setup_ui(self):
+    def setup_ui(self):
+        # Layout principal
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(30, 20, 30, 20)
+        main_layout.setContentsMargins(24, 24, 24, 24)
         main_layout.setSpacing(20)
         
-        # Configurar fundo leitoso
+        # Configurar fundo
         self.setAutoFillBackground(True)
+        from PyQt5.QtGui import QPalette
         palette = self.palette()
-        palette.setColor(self.backgroundRole(), QColor(MILK_BG))
+        palette.setColor(self.backgroundRole(), QColor(BG_COLOR))
         self.setPalette(palette)
 
-        # Barra superior de navegação horizontal
-        nav_bar = self._create_navigation_bar()
-        main_layout.addWidget(nav_bar)
+        # Cabeçalho
+        self.header = HeaderBar()
+        main_layout.addWidget(self.header)
 
-        # Área de conteúdo - StackedWidget
-        content_frame = RoundedFrame(radius=14)
-        content_frame.setStyleSheet(f"""
-            background-color: {CARD_BG};
-            border: 1.5px solid {LIGHT_BORDER};
-            border-radius: 14px;
-            box-shadow: 0 8px 32px {SHADOW_COLOR};
-        """)
-        
-        content_layout = QVBoxLayout(content_frame)
-        content_layout.setContentsMargins(0, 0, 0, 0)
-        
-        self.stack = QStackedWidget()
-        self.stack.setStyleSheet(f"""
-            QStackedWidget {{
-                background-color: transparent;
+        # Barra de navegação horizontal
+        self.nav_bar = HorizontalNavBar()
+        self.nav_bar.itemSelected.connect(self._on_nav_item_selected)
+        main_layout.addWidget(self.nav_bar)
+
+        # Área de conteúdo
+        self.content_stack = QStackedWidget()
+        self.content_stack.setStyleSheet("""
+            QStackedWidget {
+                background: transparent;
                 border: none;
-                border-radius: 14px;
-            }}
+            }
         """)
-        # Guarda referências das views carregadas dinamicamente
-        self.loaded_views = {}
+        
+        # Carregar views
         self._load_views()
         
-        content_layout.addWidget(self.stack)
-        main_layout.addWidget(content_frame, 1)
+        # Adicionar ao layout
+        main_layout.addWidget(self.content_stack, 1)
 
-    def _create_navigation_bar(self):
-        """Cria a barra de navegação horizontal."""
-        nav_frame = QFrame()
-        nav_frame.setFixedHeight(90)
-        nav_frame.setStyleSheet(f"""
-            background-color: {CARD_BG};
-            border-radius: 14px;
-            border: 1.5px solid {LIGHT_BORDER};
-            box-shadow: 0 4px 20px {SHADOW_COLOR};
-        """)
+    def _on_nav_item_selected(self, index):
+        """Lida com seleção de item na navegação."""
+        self._animate_view_transition(index)
         
-        nav_layout = QHBoxLayout(nav_frame)
-        nav_layout.setContentsMargins(30, 15, 30, 15)
-        nav_layout.setSpacing(20)
-
-        # Título do módulo
-        title_label = QLabel("Gestão de Produtos")
-        title_label.setStyleSheet(f"""
-            QLabel {{
-                color: {TEXT_PRIMARY};
-                font-size: 20px;
-                font-weight: 700;
-                font-family: 'Segoe UI', 'Inter', Arial, sans-serif;
-                padding: 5px 0;
-            }}
-        """)
-        title_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        nav_layout.addWidget(title_label)
-
-        # Adicionar espaçador flexível entre título e botões
-        nav_layout.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Expanding, QSizePolicy.Minimum))
-
-        # Criar botões
-        self.btn_adicionar = ModernButton("Adicionar", "")
-        self.btn_lista = ModernButton("Lista", "")
-        self.btn_catalogo = ModernButton("Catálogo", "")
-        self.btn_destaques = ModernButton("Destaques", "")
-
-        # Configurar botões
-        self.buttons = [
-            self.btn_adicionar, self.btn_lista, self.btn_catalogo,
-            self.btn_destaques
+        # Atualizar título do cabeçalho
+        titles = [
+            "Adicionar Novo Produto",
+            "Lista de Produtos",
+            "Catálogo de Produtos",
+            "Produtos em Destaque"
         ]
         
-        for i, btn in enumerate(self.buttons):
-            btn.clicked.connect(lambda checked, idx=i: self._select(idx))
-            nav_layout.addWidget(btn)
-
-        # Adicionar outro espaçador para manter alinhamento
-        nav_layout.addSpacerItem(QSpacerItem(20, 20, QSizePolicy.Expanding, QSizePolicy.Minimum))
-
-        # Selecionar primeiro item
-        self.btn_adicionar.setSelected(True)
-        # Mostrar a view inicial (Adicionar) imediatamente
-        # (faz a seleção após carregar as views em _load_views)
-        try:
-            self._select(0)
-        except Exception:
-            pass
-
-        return nav_frame
-
-    def _select(self, index: int):
-        """Seleciona a view pelo índice"""
-        for i, btn in enumerate(self.buttons):
-            btn.setSelected(i == index)
+        subtitles = [
+            "Adicione um novo produto ao sistema",
+            "Visualize e gerencie todos os produtos cadastrados",
+            "Explore o catálogo completo de produtos",
+            "Gerencie produtos em destaque no sistema"
+        ]
         
-        if 0 <= index < self.stack.count():
-            # Animar transição
-            self.stack.setProperty("opacity", 0.0)
-            anim = QPropertyAnimation(self.stack, b"windowOpacity")
-            anim.setDuration(300)
-            anim.setStartValue(0.0)
-            anim.setEndValue(1.0)
-            anim.start()
+        if 0 <= index < len(titles):
+            self.header.title_label.setText(titles[index])
+            self.header.subtitle_label.setText(subtitles[index])
+
+    def _animate_view_transition(self, index):
+        """Anima a transição entre views."""
+        if index < self.content_stack.count():
+            old_widget = self.content_stack.currentWidget()
+            new_widget = self.content_stack.widget(index)
             
-            self.stack.setCurrentIndex(index)
+            if old_widget and new_widget:
+                # Configurar animação de fade
+                new_widget.setGraphicsEffect(None)
+                old_widget.setGraphicsEffect(None)
+                
+                anim = QPropertyAnimation(old_widget, b"windowOpacity")
+                anim.setDuration(200)
+                anim.setStartValue(1.0)
+                anim.setEndValue(0.0)
+                anim.setEasingCurve(QEasingCurve.OutCubic)
+                
+                anim2 = QPropertyAnimation(new_widget, b"windowOpacity")
+                anim2.setDuration(200)
+                anim2.setStartValue(0.0)
+                anim2.setEndValue(1.0)
+                anim2.setEasingCurve(QEasingCurve.OutCubic)
+                
+                anim.start()
+                anim2.start()
+                
+                from PyQt5.QtCore import QTimer
+                QTimer.singleShot(50, lambda: self.content_stack.setCurrentIndex(index))
+            else:
+                self.content_stack.setCurrentIndex(index)
 
     def _load_views(self):
-        """Carrega dinamicamente todas as views"""
+        """Load views dynamically or show placeholders."""
         views = [
-            (self.views_dir / "adicionarproduto_view.py", "AddProductPage"),
-            (self.views_dir / "produtos_view.py", "ProdutosView"),
-            (self.views_dir / "catalogo_view.py", "CatalogoView"),
-            (self.views_dir / "gerir_destaque_view.py", "ManageHighlightPage"),
+            ("Adicionar Produto", "adicionarproduto_view.py", "AddProductPage"),
+            ("Lista de Produtos", "produtos_view.py", "ProdutosView"),
+            ("Catálogo de Produtos", "catalogo_view.py", "CatalogoView"),
+            ("Produtos em Destaque", "gerir_destaque_view.py", "ManageHighlightPage"),
         ]
 
-        for path, class_name in views:
-            widget = _load_view_from_path(path, class_name)
+        for title, filename, classname in views:
+            path = self.views_dir / filename
+            widget = _load_view_from_path(path, classname)
+            
             if widget is None:
-                # Criar placeholder estilizado se a view não existir
-                placeholder = QWidget()
-                placeholder.setStyleSheet(f"""
-                    background-color: {CARD_BG};
-                    border-radius: 12px;
-                    border: 2px dashed {LIGHT_BORDER};
-                """)
+                # Criar placeholder estilizado
+                placeholder = ContentPlaceholder(title, filename, classname)
                 
-                placeholder_layout = QVBoxLayout(placeholder)
-                placeholder_layout.setContentsMargins(40, 40, 40, 40)
-                placeholder_layout.setAlignment(Qt.AlignCenter)
+                # Container para o placeholder
+                container = QWidget()
+                container_layout = QVBoxLayout(container)
+                container_layout.setContentsMargins(0, 0, 0, 0)
+                container_layout.addWidget(placeholder)
                 
-                placeholder_label = QLabel(
-                    f"<div style='text-align: center;'>"
-                    f"<h3 style='color:{TEAL_PRIMARY}; margin-bottom: 15px; font-size: 20px;'>🚧 View em Construção</h3>"
-                    f"<p style='color:{TEXT_SECONDARY}; font-size: 14px; line-height: 1.6; max-width: 500px;'>"
-                    f"<b>Classe:</b> {class_name}<br>"
-                    f"<b>Arquivo:</b> {path.name}<br><br>"
-                    f"Crie este arquivo na pasta <code>produto/</code><br>"
-                    f"com uma classe chamada <code>{class_name}</code><br>"
-                    f"que herde de <code>QWidget</code>."
-                    f"</p>"
-                    f"</div>"
-                )
-                
-                placeholder_label.setWordWrap(True)
-                placeholder_layout.addWidget(placeholder_label)
-                self.stack.addWidget(placeholder)
+                self.content_stack.addWidget(container)
             else:
                 # Configurar estilo da view carregada
                 widget.setStyleSheet(f"""
                     QWidget {{
                         background-color: transparent;
                         color: {TEXT_PRIMARY};
-                        border-radius: 12px;
                     }}
                 """)
                 
-                # Envolver em um container para margens
-                container = QWidget()
-                container_layout = QVBoxLayout(container)
-                container_layout.setContentsMargins(20, 20, 20, 20)
-                container_layout.addWidget(widget)
+                # Guardar referência da view real
+                self.loaded_views[classname] = widget
                 
-                self.stack.addWidget(container)
-
-                # Guardar referência da view real para comunicações posteriores
-                try:
-                    self.loaded_views[class_name] = widget
-                except Exception:
-                    pass
-
                 # Se a view expor sinal de produto adicionado, conectar
                 if hasattr(widget, 'product_added'):
                     try:
                         widget.product_added.connect(self._on_product_added)
                     except Exception:
                         pass
-
+                
                 # Se a view expor um sinal para abrir a aba de adicionar, conectar
                 if hasattr(widget, 'open_add'):
                     try:
-                        widget.open_add.connect(lambda: self._select(0))
+                        widget.open_add.connect(lambda: self._select_view(0))
                     except Exception:
                         pass
-
-    def _apply_modern_styles(self):
-        """Aplica estilos modernos à interface."""
-        self.setStyleSheet(f"""
-            QWidget {{
-                background-color: {MILK_BG};
-                color: {TEXT_PRIMARY};
-                font-family: 'Segoe UI', 'Inter', Arial, sans-serif;
-            }}
-        """)
+                
+                # Container para a view
+                container = QWidget()
+                container_layout = QVBoxLayout(container)
+                container_layout.setContentsMargins(0, 0, 0, 0)
+                container_layout.addWidget(widget)
+                
+                self.content_stack.addWidget(container)
+    
+    def _select_view(self, index):
+        """Seleciona uma view pelo índice (para uso interno)."""
+        if 0 <= index < len(self.nav_bar.buttons):
+            for i, btn in enumerate(self.nav_bar.buttons):
+                btn.setSelected(i == index)
+            self._animate_view_transition(index)
+            
+            # Atualizar título do cabeçalho
+            titles = [
+                "Adicionar Novo Produto",
+                "Lista de Produtos",
+                "Catálogo de Produtos",
+                "Produtos em Destaque"
+            ]
+            
+            subtitles = [
+                "Adicione um novo produto ao sistema",
+                "Visualize e gerencie todos os produtos cadastrados",
+                "Explore o catálogo completo de produtos",
+                "Gerencie produtos em destaque no sistema"
+            ]
+            
+            if 0 <= index < len(titles):
+                self.header.title_label.setText(titles[index])
+                self.header.subtitle_label.setText(subtitles[index])
 
     def _on_product_added(self, product_info):
-        """Handler chamado quando `AddProductPage` emite `product_added`.
-
-        Atualiza a lista (se possível) e troca para a aba de lista.
-        """
+        """Handler chamado quando `AddProductPage` emite `product_added`."""
         nome = product_info.get('nome', '') if isinstance(product_info, dict) else ''
-        try:
-            self.show_notification(f"✅ Produto '{nome}' adicionado.", "success")
-        except Exception:
-            pass
-
-        # Se a view da lista expuser um método `refresh`, chamá-lo
+        
+        # Mostrar notificação
+        self.show_notification(f"Produto '{nome}' adicionado com sucesso!", "success")
+        
+        # Atualizar a lista de produtos se existir
         list_widget = self.loaded_views.get('ProdutosView')
         if list_widget and hasattr(list_widget, 'refresh'):
             try:
                 list_widget.refresh()
             except Exception:
                 pass
-
-        # Alternar para a aba de lista (índice 1)
-        try:
-            self._select(1)
-        except Exception:
-            pass
         
-    def show_notification(self, message: str, type: str = "info", duration: int = 3000):
+        # Alternar para a aba de lista
+        self._select_view(1)
+
+    def show_notification(self, message: str, type: str = "success"):
         """Exibe uma notificação temporária."""
         from PyQt5.QtWidgets import QLabel
-        
-        notification = QLabel(message, self)
+        from PyQt5.QtCore import QTimer
         
         colors = {
-            "success": GREEN_SUCCESS,
-            "error": RED_ERROR,
-            "warning": ORANGE_ALERT,
-            "info": TEAL_PRIMARY
+            "success": SECONDARY_COLOR,
+            "error": DANGER_COLOR,
+            "warning": WARNING_COLOR,
+            "info": PRIMARY_COLOR
         }
         
-        color = colors.get(type, TEAL_PRIMARY)
+        color = colors.get(type, PRIMARY_COLOR)
         
+        notification = QLabel(message, self)
         notification.setStyleSheet(f"""
             QLabel {{
                 background-color: {color};
@@ -403,7 +530,6 @@ class ProdutoPage(QWidget):
                 border-radius: 10px;
                 font-weight: 600;
                 font-size: 14px;
-                box-shadow: 0 6px 20px {color}40;
                 margin: 10px;
             }}
         """)
@@ -422,7 +548,7 @@ class ProdutoPage(QWidget):
         anim.start()
         
         # Timer para remover
-        QTimer.singleShot(duration, lambda: self._fade_out_notification(notification))
+        QTimer.singleShot(3000, lambda: self._fade_out_notification(notification))
     
     def _fade_out_notification(self, notification):
         """Remove a notificação com animação."""
@@ -435,20 +561,23 @@ class ProdutoPage(QWidget):
 
 
 if __name__ == '__main__':
+    from PyQt5.QtWidgets import QApplication
+    import sys
+
     app = QApplication(sys.argv)
-    app.setStyle('Fusion')
+    app.setStyle("Fusion")
     
-    # Estilo global moderno
+    # Estilo global
     app.setStyleSheet(f"""
-        QApplication {{
-            background-color: {MILK_BG};
+        * {{
+            font-family: 'Segoe UI', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
         }}
         
         QScrollBar:vertical {{
-            background-color: {MILK_BG};
+            background-color: {BG_COLOR};
             width: 10px;
             border-radius: 5px;
-            margin: 2px;
+            border: none;
         }}
         
         QScrollBar::handle:vertical {{
@@ -458,37 +587,18 @@ if __name__ == '__main__':
         }}
         
         QScrollBar::handle:vertical:hover {{
-            background-color: {TEAL_PRIMARY};
+            background-color: {PRIMARY_COLOR};
         }}
         
-        QScrollBar:horizontal {{
-            background-color: {MILK_BG};
-            height: 10px;
-            border-radius: 5px;
-            margin: 2px;
-        }}
-        
-        QScrollBar::handle:horizontal {{
-            background-color: {TEXT_LIGHT};
-            border-radius: 5px;
-            min-width: 20px;
-        }}
-        
-        QScrollBar::handle:horizontal:hover {{
-            background-color: {TEAL_PRIMARY};
+        QScrollBar::add-line, QScrollBar::sub-line {{
+            border: none;
+            background: none;
         }}
     """)
     
     w = ProdutoPage()
+    w.setWindowTitle("Sistema de Gestão de Produtos - Kamba Farma")
     w.resize(1400, 900)
-    w.setWindowTitle("Kamba Farma - Gestão de Produtos")
-    
-    # Ícone da janela
-    try:
-        from PyQt5.QtGui import QIcon
-        w.setWindowIcon(QIcon.fromTheme("package"))
-    except:
-        pass
-    
     w.show()
+    
     sys.exit(app.exec_())

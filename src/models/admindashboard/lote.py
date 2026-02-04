@@ -19,19 +19,7 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, QPropertyAnimation, QEasingCurve, pyqtSignal
 from PyQt5.QtGui import QFont, QColor, QPainter, QPainterPath, QLinearGradient
 
-# Paleta de cores moderna
-PRIMARY_COLOR = "#4A6CF7"
-SECONDARY_COLOR = "#10B981"
-DANGER_COLOR = "#EF4444"
-WARNING_COLOR = "#F59E0B"
-BG_COLOR = "#FFFFFF"
-CARD_BG = "#FFFFFF"
-BORDER_COLOR = "#E8EEF5"
-TEXT_PRIMARY = "#1A1D29"
-TEXT_SECONDARY = "#6B7280"
-TEXT_LIGHT = "#9CA3AF"
-ACCENT_COLOR = "#8B5CF6"
-SHADOW_COLOR = "rgba(0, 0, 0, 0.08)"
+from colors import *
 
 
 class RoundedFrame(QFrame):
@@ -146,7 +134,7 @@ class HorizontalNavBar(QFrame):
         layout.setSpacing(12)
         
         # Título da navegação
-        title = QLabel("📦 Navegação")
+        title = QLabel(" Navegação")
         title.setStyleSheet(f"""
             color: {TEXT_PRIMARY};
             font-size: 16px;
@@ -158,9 +146,9 @@ class HorizontalNavBar(QFrame):
         # Botões de navegação
         self.buttons: List[ModernNavButton] = []
         nav_items = [
-            ("📥", "Adicionar Lote", "Adicionar novo lote de produtos"),
-            ("💊", "Produtos", "Ver produtos disponíveis"),
-            ("📋", "Lotes Registrados", "Visualizar lotes registrados"),
+            ("", "Adicionar Lote", "Adicionar novo lote de produtos"),
+            ("", "Produtos", "Ver produtos disponíveis"),
+            ("", "Lotes Registrados", "Visualizar lotes registrados"),
         ]
         
         for icon, text, tooltip in nav_items:
@@ -271,7 +259,7 @@ class ContentPlaceholder(QWidget):
         layout.setAlignment(Qt.AlignCenter)
         
         # Ícone
-        icon = QLabel("🚧")
+        icon = QLabel("")
         icon.setStyleSheet(f"""
             font-size: 72px;
             margin-bottom: 24px;
@@ -304,7 +292,7 @@ class ContentPlaceholder(QWidget):
         layout.addWidget(description)
         
         # Botão de exemplo
-        example_btn = QPushButton("📄 Ver exemplo de código")
+        example_btn = QPushButton(" Ver exemplo de código")
         example_btn.setStyleSheet(f"""
             QPushButton {{
                 background-color: #F0F7FF;
@@ -374,9 +362,9 @@ class LotePage(QWidget):
         
         # Atualizar título do cabeçalho
         titles = [
-            "📥 Adicionar Novo Lote",
-            "💊 Produtos e Estoque",
-            "📋 Lotes Registrados"
+            " Adicionar Novo Lote",
+            " Produtos e Estoque",
+            " Lotes Registrados"
         ]
         
         subtitles = [
@@ -423,9 +411,9 @@ class LotePage(QWidget):
     def _load_views(self):
         """Load views dynamically or show placeholders."""
         views = [
-            ("📥 Adicionar Lote", "adicionar_lote.py", "AdicionarLoteView"),
-            ("💊 Produtos", "produtos.py", "ProdutosView"),
-            ("📋 Lotes Registrados", "lotes_registrados.py", "LotesRegistradosView"),
+            (" Adicionar Lote", "adicionar_lote.py", "AdicionarLoteView"),
+            (" Produtos", "produtos.py", "ProdutosView"),
+            (" Lotes Registrados", "lotes_registrados.py", "LotesRegistradosView"),
         ]
 
         for title, filename, classname in views:

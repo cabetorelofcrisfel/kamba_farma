@@ -17,17 +17,18 @@ if str(_ROOT) not in sys.path:
 from src.config.paths import DB_DIR
 from database.db import connect, get_db_path
 
-# Paleta de cores
-PRIMARY_COLOR = "#4A6CF7"
-SECONDARY_COLOR = "#10B981"
-DANGER_COLOR = "#EF4444"
-BG_COLOR = "#F8FAFD"
-CARD_BG = "#FFFFFF"
-BORDER_COLOR = "#E8EEF5"
-TEXT_PRIMARY = "#1A1D29"
+from colors import *
+# Local aliases and helpers
+CARD_BG = WHITE
+MILK_BG = BACKGROUND_GRAY
+TEAL_PRIMARY = PRIMARY_COLOR
+TEAL_LIGHT = "#E6F9FB"  # light variant of PRIMARY_COLOR
+TEAL_HOVER = "#CFF8FA"
+LIGHT_BORDER = "#E8E8E8"
+BORDER_COLOR = BORDER_COLOR
+TEXT_PRIMARY = TEXT_PRIMARY
 TEXT_SECONDARY = "#6B7280"
 TEXT_LIGHT = "#9CA3AF"
-
 
 class RoundedFrame(QFrame):
     """Frame com cantos arredondados."""
@@ -111,7 +112,7 @@ class AdicionarLoteView(QWidget):
         header_layout.setContentsMargins(24, 24, 24, 24)
         header_layout.setSpacing(12)
         
-        title = QLabel("📥 Adicionar Novo Lote")
+        title = QLabel(" Adicionar Novo Lote")
         title_font = QFont("Segoe UI", 20, QFont.Bold)
         title.setFont(title_font)
         title.setStyleSheet(f"color: {TEXT_PRIMARY};")
@@ -137,7 +138,7 @@ class AdicionarLoteView(QWidget):
         form_layout.setSpacing(25)
         
         # Seção de informações básicas
-        basic_group = QGroupBox("📋 Informações Básicas")
+        basic_group = QGroupBox(" Informações Básicas")
         basic_group.setStyleSheet(f"""
             QGroupBox {{
                 font-weight: 600;
@@ -279,7 +280,7 @@ class AdicionarLoteView(QWidget):
         form_layout.addWidget(basic_group)
         
         # Seção de valores e fornecedor
-        values_group = QGroupBox("💰 Valores e Fornecedor")
+        values_group = QGroupBox(" Valores e Fornecedor")
         values_group.setStyleSheet(f"""
             QGroupBox {{
                 font-weight: 600;
@@ -310,7 +311,7 @@ class AdicionarLoteView(QWidget):
         self.preco_compra = QDoubleSpinBox()
         self.preco_compra.setRange(0, 1e9)
         self.preco_compra.setDecimals(2)
-        self.preco_compra.setPrefix("AOA ")
+        self.preco_compra.setPrefix("Kz ")
         self.preco_compra.setValue(0.0)
         self.preco_compra.setMinimumHeight(44)
         self.preco_compra.setStyleSheet(f"""
@@ -366,7 +367,7 @@ class AdicionarLoteView(QWidget):
         form_layout.addWidget(values_group)
         
         # Seção de foto
-        foto_group = QGroupBox("📸 Foto do Lote (Opcional)")
+        foto_group = QGroupBox(" Foto do Lote (Opcional)")
         foto_group.setStyleSheet(f"""
             QGroupBox {{
                 font-weight: 600;
@@ -406,7 +407,7 @@ class AdicionarLoteView(QWidget):
         foto_btn_layout = QHBoxLayout()
         
         # Botão para escolher foto
-        self.foto_btn = QPushButton("🖼️ Escolher Imagem")
+        self.foto_btn = QPushButton(" Escolher Imagem")
         self.foto_btn.setMinimumHeight(44)
         self.foto_btn.setStyleSheet(f"""
             QPushButton {{
@@ -427,7 +428,7 @@ class AdicionarLoteView(QWidget):
         self.foto_btn.clicked.connect(self.choose_foto)
         
         # Botão para remover foto
-        self.remover_foto_btn = QPushButton("🗑️ Remover Imagem")
+        self.remover_foto_btn = QPushButton(" Remover Imagem")
         self.remover_foto_btn.setMinimumHeight(44)
         self.remover_foto_btn.setStyleSheet(f"""
             QPushButton {{
@@ -485,7 +486,7 @@ class AdicionarLoteView(QWidget):
         buttons_layout.addStretch()
         
         # Botão Cancelar
-        self.cancel_btn = QPushButton("❌ Cancelar")
+        self.cancel_btn = QPushButton(" Cancelar")
         self.cancel_btn.setMinimumHeight(50)
         self.cancel_btn.setMinimumWidth(150)
         self.cancel_btn.setStyleSheet(f"""
@@ -507,7 +508,7 @@ class AdicionarLoteView(QWidget):
         self.cancel_btn.clicked.connect(self.on_cancel)
         
         # Botão Salvar
-        self.save_btn = QPushButton("💾 Salvar Lote")
+        self.save_btn = QPushButton(" Salvar Lote")
         self.save_btn.setMinimumHeight(50)
         self.save_btn.setMinimumWidth(150)
         self.save_btn.setStyleSheet(f"""
@@ -552,7 +553,7 @@ class AdicionarLoteView(QWidget):
                 return
         
         # Mostrar placeholder
-        self.foto_preview.setText("📷\nSem\nimagem")
+        self.foto_preview.setText("\nSem\nimagem")
         self.foto_preview.setStyleSheet(f"""
             QLabel {{
                 background-color: {CARD_BG};

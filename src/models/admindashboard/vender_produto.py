@@ -16,17 +16,7 @@ from PyQt5.QtGui import QPixmap, QFont, QColor, QPainter, QPainterPath, QIcon, Q
 from PyQt5.QtPrintSupport import QPrinter, QPrintDialog
 from datetime import datetime
 
-# Configuração de cores
-PRIMARY_COLOR = "#4A6CF7"
-SECONDARY_COLOR = "#10B981"
-DANGER_COLOR = "#EF4444"
-WARNING_COLOR = "#F59E0B"
-BG_COLOR = "#F8FAFD"
-CARD_BG = "#FFFFFF"
-BORDER_COLOR = "#E8EEF5"
-TEXT_PRIMARY = "#1A1D29"
-TEXT_SECONDARY = "#6B7280"
-TEXT_LIGHT = "#9CA3AF"
+from colors import *
 
 class RoundedFrame(QFrame):
     """Frame com cantos arredondados."""
@@ -81,7 +71,7 @@ class ProductCard(QFrame):
         self.product_image = QLabel()
         self.product_image.setAlignment(Qt.AlignCenter)
         self.product_image.setFixedSize(120, 120)
-        self.product_image.setText("🛒")
+        self.product_image.setText("")
         self.product_image.setStyleSheet("font-size: 48px; color: #9CA3AF;")
         
         self.image_layout.addWidget(self.product_image)
@@ -154,7 +144,7 @@ class ProductCard(QFrame):
             }}
         """)
         
-        self.add_to_cart_btn = QPushButton("➕ Adicionar à Venda")
+        self.add_to_cart_btn = QPushButton(" Adicionar à Venda")
         self.add_to_cart_btn.setStyleSheet(f"""
             QPushButton {{
                 background-color: {PRIMARY_COLOR};
@@ -193,7 +183,7 @@ class ProductCard(QFrame):
         """Define as informações do produto no card."""
         self.name_label.setText(name)
         self.stock_label.setText(f"Estoque: {stock}")
-        self.price_label.setText(f"Preço: AOA {price:,.2f}")
+        self.price_label.setText(f"Preço: Kz {price:,.2f}")
         self.code_label.setText(f"Código: {code}" if code else "Código: --")
         self.category_label.setText(f"Categoria: {category}" if category else "Categoria: --")
         
@@ -203,10 +193,10 @@ class ProductCard(QFrame):
                 pixmap = pixmap.scaled(120, 120, Qt.KeepAspectRatio, Qt.SmoothTransformation)
                 self.product_image.setPixmap(pixmap)
             else:
-                self.product_image.setText("📦")
+                self.product_image.setText("")
                 self.product_image.setStyleSheet("font-size: 48px; color: #9CA3AF;")
         else:
-            self.product_image.setText("📦")
+            self.product_image.setText("")
             self.product_image.setStyleSheet("font-size: 48px; color: #9CA3AF;")
         
         # Atualizar quantidade máxima baseada no estoque
@@ -305,12 +295,12 @@ class SaleItemTable(QTableWidget):
         self.setItem(row, 1, quantity_item)
         
         # Preço Unitário
-        price_item = QTableWidgetItem(f"AOA {price:,.2f}")
+        price_item = QTableWidgetItem(f"Kz {price:,.2f}")
         self.setItem(row, 2, price_item)
         
         # Subtotal
         subtotal = quantity * price
-        subtotal_item = QTableWidgetItem(f"AOA {subtotal:,.2f}")
+        subtotal_item = QTableWidgetItem(f"Kz {subtotal:,.2f}")
         subtotal_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.setItem(row, 3, subtotal_item)
         
@@ -403,12 +393,12 @@ class SaleItemTable(QTableWidget):
                 quantity_item.setText(str(new_qty))
                 
                 # Recalcular subtotal
-                price_text = price_item.text().replace("AOA", "").replace(",", "").strip()
+                price_text = price_item.text().replace("Kz", "").replace(",", "").strip()
                 price = float(price_text)
                 subtotal = new_qty * price
                 
                 subtotal_item = self.item(row, 3)
-                subtotal_item.setText(f"AOA {subtotal:,.2f}")
+                subtotal_item.setText(f"Kz {subtotal:,.2f}")
                 
                 # Emitir sinal de atualização
                 self.parent().update_totals()
@@ -424,7 +414,7 @@ class SaleItemTable(QTableWidget):
         for row in range(self.rowCount()):
             subtotal_item = self.item(row, 3)
             if subtotal_item:
-                subtotal_text = subtotal_item.text().replace("AOA", "").replace(",", "").strip()
+                subtotal_text = subtotal_item.text().replace("Kz", "").replace(",", "").strip()
                 total += float(subtotal_text)
         return total
     
@@ -469,7 +459,7 @@ class VendaView(QWidget):
         palette.setColor(self.backgroundRole(), QColor(BG_COLOR))
         self.setPalette(palette)
 
-        title_label = QLabel("🛒 Nova Venda")
+        title_label = QLabel(" Nova Venda")
         title_font = QFont("Segoe UI", 24, QFont.Bold)
         title_label.setFont(title_font)
         title_label.setStyleSheet(f"color: {TEXT_PRIMARY}; margin-bottom: 10px;")
@@ -488,7 +478,7 @@ class VendaView(QWidget):
         client_layout.setContentsMargins(0, 0, 0, 0)
         client_layout.setSpacing(10)
         
-        client_label = QLabel("👤 Cliente:")
+        client_label = QLabel(" Cliente:")
         client_label.setStyleSheet(f"font-weight: 600; color: {TEXT_PRIMARY}; font-size: 14px;")
         
         self.client_input = QLineEdit()
@@ -514,7 +504,7 @@ class VendaView(QWidget):
         search_layout.setContentsMargins(0, 0, 0, 0)
         search_layout.setSpacing(10)
         
-        search_label = QLabel("🔍 Pesquisar Produto:")
+        search_label = QLabel(" Pesquisar Produto:")
         search_label.setStyleSheet(f"font-weight: 600; color: {TEXT_PRIMARY}; font-size: 14px;")
         
         self.search_input = QLineEdit()
@@ -583,7 +573,7 @@ class VendaView(QWidget):
         row3_layout.setContentsMargins(20, 20, 20, 20)
         row3_layout.setSpacing(15)
         
-        items_label = QLabel("📋 Itens da Venda")
+        items_label = QLabel(" Itens da Venda")
         items_label.setStyleSheet(f"""
             font-size: 16px;
             font-weight: 600;
@@ -618,7 +608,7 @@ class VendaView(QWidget):
         summary_layout.setContentsMargins(0, 0, 0, 0)
         summary_layout.setSpacing(6)
         
-        self.total_label = QLabel("Total: AOA 0,00")
+        self.total_label = QLabel("Total: Kz 0,00")
         self.total_label.setStyleSheet(f"""
             font-size: 20px;
             font-weight: 800;
@@ -640,7 +630,7 @@ class VendaView(QWidget):
         buttons_layout.setContentsMargins(0, 0, 0, 0)
         buttons_layout.setSpacing(12)
 
-        self.cancel_btn = QPushButton("❌ Cancelar Venda")
+        self.cancel_btn = QPushButton(" Cancelar Venda")
         self.cancel_btn.setCursor(Qt.PointingHandCursor)
         self.cancel_btn.setStyleSheet("""
             QPushButton {
@@ -656,7 +646,7 @@ class VendaView(QWidget):
             QPushButton:hover { background-color: #FFECEC; }
         """ % DANGER_COLOR)
 
-        self.sell_btn = QPushButton("💰 Finalizar Venda")
+        self.sell_btn = QPushButton(" Finalizar Venda")
         self.sell_btn.setCursor(Qt.PointingHandCursor)
         self.sell_btn.setStyleSheet(f"""
             QPushButton {{
@@ -832,7 +822,7 @@ class VendaView(QWidget):
                 
                 # Recalcular subtotal
                 subtotal = new_qty * self.current_product_price
-                self.items_table.item(i, 3).setText(f"AOA {subtotal:,.2f}")
+                self.items_table.item(i, 3).setText(f"Kz {subtotal:,.2f}")
                 
                 self.update_totals()
                 return
@@ -852,7 +842,7 @@ class VendaView(QWidget):
         total = self.items_table.get_total()
         item_count = self.items_table.rowCount()
         
-        self.total_label.setText(f"Total: AOA {total:,.2f}")
+        self.total_label.setText(f"Total: Kz {total:,.2f}")
         self.items_count_label.setText(f"{item_count} {'item' if item_count == 1 else 'itens'} na venda")
         
         # Habilitar/desabilitar botão de venda
@@ -923,13 +913,13 @@ class VendaView(QWidget):
                 quantidade = int(it.get('quantidade', 0))
                 preco = float(it.get('preco_unitario') or 0.0)
                 subtotal = quantidade * preco
-                html += f"<tr><td>{produto_nome}</td><td>{quantidade}</td><td class='right'>AOA {preco:,.2f}</td><td class='right'>AOA {subtotal:,.2f}</td></tr>"
+                html += f"<tr><td>{produto_nome}</td><td>{quantidade}</td><td class='right'>Kz {preco:,.2f}</td><td class='right'>Kz {subtotal:,.2f}</td></tr>"
 
             html += f"""
                 </tbody>
             </table>
             <div style='margin-top:18px; text-align:right;'>
-                <div class='total'>Total: AOA {total:,.2f}</div>
+                <div class='total'>Total: Kz {total:,.2f}</div>
             </div>
             <div style='margin-top:12px; font-size:12px; color:#666;'>Obrigado pela preferência!</div>
             </body>
@@ -985,7 +975,7 @@ class VendaView(QWidget):
                 product_item = self.items_table.item(row, 0)
                 produto_id = product_item.data(Qt.UserRole)
                 quantidade = int(self.items_table.item(row, 1).text())
-                price_text = self.items_table.item(row, 2).text().replace("AOA", "").replace(",", "").strip()
+                price_text = self.items_table.item(row, 2).text().replace("Kz", "").replace(",", "").strip()
                 preco_unit = float(price_text)
                 # tentar obter o nome comercial do produto para a fatura/histórico
                 try:
@@ -1068,7 +1058,7 @@ class VendaView(QWidget):
             msg = QMessageBox(self)
             msg.setIcon(QMessageBox.Information)
             msg.setWindowTitle("Resumo da Venda")
-            msg.setText(f"Venda finalizada com sucesso!\n\nCliente: {client_name}\nTotal: AOA {total:,.2f}\nItens: {item_count}")
+            msg.setText(f"Venda finalizada com sucesso!\n\nCliente: {client_name}\nTotal: Kz {total:,.2f}\nItens: {item_count}")
             msg.setStandardButtons(QMessageBox.Ok)
             msg.exec_()
 

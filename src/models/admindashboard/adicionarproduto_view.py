@@ -9,25 +9,25 @@ from PyQt5.QtGui import QPixmap, QFont, QIcon, QPainter, QPainterPath, QColor, Q
 import sqlite3
 from pathlib import Path
 
-# Paleta de cores - TEMA CLARO MODERNO
-MILK_BG = "#FFFBF5"  # Fundo leitoso
-CARD_BG = "#FFFFFF"  # Branco puro para cards
-LIGHT_BORDER = "#E8E8E8"  # Borda cinza claro
-ACCENT_BORDER = "#00BFA5"  # Borda de destaque teal
-TEXT_PRIMARY = "#2C3E50"  # Azul escuro para texto principal
-TEXT_SECONDARY = "#7F8C8D"  # Cinza para texto secundário
-TEXT_LIGHT = "#95A5A6"  # Cinza mais claro
-TEAL_PRIMARY = "#00BFA5"  # Teal principal
-TEAL_LIGHT = "#E0F7FA"  # Teal muito claro para fundo
-TEAL_HOVER = "#B2EBF2"  # Teal para hover
-TEAL_DARK = "#00897B"
-GREEN_SUCCESS = "#2ECC71"  # Verde moderno
-RED_ERROR = "#E74C3C"  # Vermelho moderno
-PURPLE = "#9B59B6"  # Roxo moderno
-BLUE_INFO = "#3498DB"  # Azul moderno
-ORANGE_ALERT = "#F39C12"  # Laranja moderno
-SHADOW_COLOR = "#00000010"  # Sombra sutil
-
+from colors import *
+# Local aliases and legacy helpers
+MILK_BG = BACKGROUND_GRAY
+CARD_BG = WHITE
+LIGHT_BORDER = "#E8E8E8"
+ACCENT_BORDER = PRIMARY_DARK
+TEXT_DARK = TEXT_PRIMARY
+TEXT_SECONDARY = "#7F8C8D"
+TEXT_LIGHT = "#95A5A6"
+TEAL_PRIMARY = PRIMARY_COLOR
+TEAL_LIGHT = "#E6F9FB"
+TEAL_HOVER = "#CFF8FA"
+TEAL_DARK = PRIMARY_DARK
+GREEN_SUCCESS = "#2ECC71"
+RED_ERROR = ACCENT_RED
+PURPLE = "#9B59B6"
+BLUE_INFO = "#3498DB"
+ORANGE_ALERT = "#F39C12"
+SHADOW_COLOR = SHADOW_COLOR
 
 class RoundedFrame(QFrame):
     """Frame com cantos arredondados."""
@@ -61,8 +61,8 @@ class GradientHeader(QFrame):
         
         # Gradiente de fundo
         gradient = QLinearGradient(0, 0, self.width(), 0)
-        gradient.setColorAt(0, QColor("#00BFA5"))
-        gradient.setColorAt(1, QColor("#009688"))
+        gradient.setColorAt(0, QColor(PRIMARY_COLOR))
+        gradient.setColorAt(1, QColor(PRIMARY_DARK))
         
         path = QPainterPath()
         path.addRoundedRect(0, 0, self.width(), self.height(), 12, 12)
@@ -305,7 +305,7 @@ class ModernButton(QPushButton):
 
 
 class AddProductPage(QWidget):
-    """Página para adicionar novos produtos ao sistema"""
+    "Página para adicionar novos produtos ao sistema"""
     
     # Emitido quando um produto é adicionado. Payload: {'id': ..., 'nome': ...}
     product_added = pyqtSignal(dict)  # Sinal emitido quando um produto é adicionado
@@ -335,7 +335,7 @@ class AddProductPage(QWidget):
         header_content = QHBoxLayout()
         
         # Ícone e título
-        icon_label = QLabel("💊")
+        icon_label = QLabel("")
         icon_label.setStyleSheet(f"""
             QLabel {{
                 font-size: 36px;
@@ -406,7 +406,7 @@ class AddProductPage(QWidget):
         form_layout.setSpacing(20)
 
         # Seção 1: Informações Básicas
-        basic_info_group = QGroupBox("📋 Informações Básicas")
+        basic_info_group = QGroupBox(" Informações Básicas")
         basic_info_group.setStyleSheet(f"""
             QGroupBox {{
                 background-color: {CARD_BG};
@@ -479,7 +479,7 @@ class AddProductPage(QWidget):
         form_layout.addWidget(basic_info_group)
 
         # Seção 2: Preços e Stock
-        price_stock_group = QGroupBox("💰 Preços e Stock")
+        price_stock_group = QGroupBox(" Preços e Stock")
         price_stock_group.setStyleSheet(f"""
             QGroupBox {{
                 background-color: {CARD_BG};
@@ -509,7 +509,7 @@ class AddProductPage(QWidget):
         self.preco_input = ModernDoubleSpinBox()
         self.preco_input.setRange(0.01, 999999.99)
         self.preco_input.setDecimals(2)
-        self.preco_input.setPrefix("AOA ")
+        self.preco_input.setPrefix("Kz ")
         self.preco_input.setValue(0.01)
         price_form.addWidget(QLabel("Preço de Venda*:"), 0, 0)
         price_form.addWidget(self.preco_input, 0, 1)
@@ -518,7 +518,7 @@ class AddProductPage(QWidget):
         self.preco_compra_input = ModernDoubleSpinBox()
         self.preco_compra_input.setRange(0.00, 999999.99)
         self.preco_compra_input.setDecimals(2)
-        self.preco_compra_input.setPrefix("AOA ")
+        self.preco_compra_input.setPrefix("Kz ")
         self.preco_compra_input.setValue(0.00)
         price_form.addWidget(QLabel("Preço de Compra*:"), 0, 2)
         price_form.addWidget(self.preco_compra_input, 0, 3)
@@ -540,7 +540,7 @@ class AddProductPage(QWidget):
         form_layout.addWidget(price_stock_group)
 
         # Seção 3: Fornecedor e Lote
-        supplier_group = QGroupBox("🏢 Fornecedor e Lote")
+        supplier_group = QGroupBox(" Fornecedor e Lote")
         supplier_group.setStyleSheet(f"""
             QGroupBox {{
                 background-color: {CARD_BG};
@@ -593,7 +593,7 @@ class AddProductPage(QWidget):
         form_layout.addWidget(supplier_group)
 
         # Seção 4: Foto do Produto
-        photo_group = QGroupBox("📷 Foto do Produto")
+        photo_group = QGroupBox(" Foto do Produto")
         photo_group.setStyleSheet(f"""
             QGroupBox {{
                 background-color: {CARD_BG};
@@ -641,10 +641,10 @@ class AddProductPage(QWidget):
         photo_controls = QVBoxLayout()
         photo_controls.setSpacing(15)
         
-        btn_selecionar = ModernButton("Selecionar Imagem", "📁", TEAL_PRIMARY, TEAL_DARK)
+        btn_selecionar = ModernButton("Selecionar Imagem", "", TEAL_PRIMARY, TEAL_DARK)
         btn_selecionar.clicked.connect(self._selecionar_foto)
         
-        btn_remover = ModernButton("Remover Imagem", "🗑️", RED_ERROR, "#C0392B")
+        btn_remover = ModernButton("Remover Imagem", "", RED_ERROR, "#C0392B")
         btn_remover.clicked.connect(self._remover_foto)
         
         photo_controls.addWidget(btn_selecionar)
@@ -685,11 +685,11 @@ class AddProductPage(QWidget):
         buttons_layout.setSpacing(20)
         
         # Botão Cancelar
-        btn_cancelar = ModernButton("Cancelar", "✕", TEXT_SECONDARY, TEXT_PRIMARY)
+        btn_cancelar = ModernButton("Cancelar", "", TEXT_SECONDARY, TEXT_PRIMARY)
         btn_cancelar.clicked.connect(self._on_cancelar)
         
         # Botão Salvar
-        btn_salvar = ModernButton("Salvar Produto", "💾", GREEN_SUCCESS, "#27AE60")
+        btn_salvar = ModernButton("Salvar Produto", "", GREEN_SUCCESS, "#27AE60")
         btn_salvar.clicked.connect(self._on_salvar)
         
         buttons_layout.addStretch()
@@ -720,7 +720,7 @@ class AddProductPage(QWidget):
                 return
         
         # Mostrar placeholder
-        self.foto_preview.setText("📷\nClique para\nadicionar\nimagem")
+        self.foto_preview.setText("\nClique para\nadicionar\nimagem")
         self.foto_preview.setStyleSheet(f"""
             QLabel {{
                 background-color: {TEAL_LIGHT};
@@ -978,7 +978,7 @@ class AddProductPage(QWidget):
             # Mostrar mensagem de sucesso
             msg = f"""
             <div style='text-align: center; padding: 20px;'>
-                <div style='font-size: 48px; color: {GREEN_SUCCESS}; margin-bottom: 15px;'>✓</div>
+                <div style='font-size: 48px; color: {GREEN_SUCCESS}; margin-bottom: 15px;'></div>
                 <h3 style='color: {TEXT_PRIMARY}; margin-bottom: 10px;'>Produto Adicionado com Sucesso!</h3>
                 <p style='color: {TEXT_SECONDARY}; line-height: 1.6;'>
                     <b>{self.nome_input.text().strip()}</b><br>

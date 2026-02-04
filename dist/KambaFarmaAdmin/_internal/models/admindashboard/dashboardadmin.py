@@ -1,0 +1,2417 @@
+#!/usr/bin/env python3
+# Recomendações de execução (evita conflito com bibliotecas do Snap/VSCode):
+# - Use o Python do sistema para rodar o script:
+#     /usr/bin/python3 /home/kamba/Desktop/kamba/kamba/src/models/admindashboard/dashboardadmin.py
+# - Ou execute com ambiente limpo (remove variáveis injetadas pelo snap):
+#     env -i PATH=$PATH DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY /usr/bin/python3 /home/kamba/Desktop/kamba/kamba/src/models/admindashboard/dashboardadmin.py
+# - Exemplo de wrapper (`run_clean.sh`):
+#     #!/bin/bash
+#     env -i PATH=$PATH DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY /usr/bin/python3 "$@"
+# Nota: evitar usar um `python` que carregue bibliotecas do Snap (ex: /bin/python),
+# isso pode causar erros de símbolo relacionados ao glibc (ex.: __libc_pthread_init).
+
+import sys
+import os
+import sqlite3
+from pathlib import Path
+from PyQt5.QtWidgets import (
+    QMainWindow, QWidget, QHBoxLayout, QVBoxLayout, QPushButton, QLabel,
+    QStackedWidget, QApplication, QSizePolicy, QLineEdit, QMessageBox,
+    QFrame, QSpacerItem, QGridLayout
+)
+from PyQt5.QtCore import Qt, QPropertyAnimation, QEasingCurve, QRect, QTimer
+from PyQt5.QtGui import QFont, QFontDatabase, QPainter, QBrush, QColor, QLinearGradient, QIcon, QPixmap, QMovie
+import hashlib
+import logging
+
+# logging para debug de login (arquivo local)
+logger = logging.getLogger('kamba.login')
+if not logger.handlers:
+    logger.setLevel(logging.DEBUG)
+    log_dir = Path(__file__).resolve().parents[2] / 'kamba' / 'logs'
+    try:
+        log_dir.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        log_dir = Path(__file__).resolve().parents[2]
+    fh = logging.FileHandler(log_dir / 'login_debug.log')
+    fh.setLevel(logging.DEBUG)
+    fmt = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
+    fh.setFormatter(fmt)
+    logger.addHandler(fh)
+
+# ============================================================================
+# CONSTANTES DE CORES (UNIFICADAS)
+# ============================================================================
+AZUL_CARRREGADO = "#1e3a8a"
+AZUL_BEBE = "#93c5fd"
+VERDE_PRINCIPAL = "#10b988"
+CINZA_ESCURO = "#374151"
+CINZA_CLARO = "#f3f4f6"
+BRANCO = "#ffffff"
+
+TEAL_PRIMARY = "#009688"
+TEAL_DARK = "#00796B"
+TEAL_LIGHT = "#4DB6AC"
+WHITE_NEUTRAL = "#FAFAFA"
+DARK_GRAY = "#263238"
+ORANGE_ALERT = "#FF9800"
+WHITE = "#FFFFFF"
+GRAY_LIGHT = "#ECEFF1"
+GRAY_MEDIUM = "#B0BEC5"
+
+# NOVAS CORES DA PALETA ESPECIFICADA
+BACKGROUND_LIGHT = "#F5F7FA"    # fundo principal
+SURFACE_CARD = "#FFFFFF"        # cards, painéis
+TEXT_PRIMARY = "#263238"        # texto principal
+TEXT_SECONDARY = "#607D8B"      # texto secundário
+BORDER_DIVIDER = "#E0E0E0"      # linhas, bordas
+
+# Tentativas de importar implementações modulares (fallback para classes locais)
+# Usamos import absoluto para evitar problemas de contexto durante import
+try:
+    from models.admindashboard.home import HomePage as HomePageModule
+except Exception:
+    HomePageModule = None
+
+# Produto: pode haver também um package `produto/` que sobrescreve o módulo `produto.py`.
+ProdutoPageModule = None
+try:
+    from models.admindashboard.produto import ProdutoPage as ProdutoPageModule
+except Exception as e:
+    logger.debug('Import direto de models.admindashboard.produto falhou: %s', e)
+    # Tentar carregar pelo nome do pacote (funciona quando PyInstaller empacota o módulo)
+    try:
+        import importlib
+        m = importlib.import_module('models.admindashboard.produto')
+        ProdutoPageModule = getattr(m, 'ProdutoPage', None)
+        if ProdutoPageModule:
+            logger.debug('ProdutoPage carregado via importlib.import_module')
+    except Exception as e2:
+        logger.debug('Import via import_module falhou: %s', e2)
+        # Fallback para desenvolvimento local: carregar o arquivo `produto.py` diretamente
+        try:
+            import importlib.util
+            from pathlib import Path
+            prod_path = Path(__file__).parent / 'produto.py'
+            if prod_path.exists():
+                spec = importlib.util.spec_from_file_location('models.admindashboard._produto_module', str(prod_path))
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                ProdutoPageModule = getattr(module, 'ProdutoPage', None)
+        except Exception as e3:
+            logger.debug('Import from file falhou: %s', e3)
+            ProdutoPageModule = None
+
+try:
+    from models.admindashboard.lote import LotePage as LotePageModule
+except Exception:
+    LotePageModule = None
+
+try:
+    from models.admindashboard.venda import VendaPage as VendaPageModule
+except Exception:
+    VendaPageModule = None
+
+try:
+    from models.admindashboard.usuario import UsuarioPage as UsuarioPageModule
+except Exception:
+    UsuarioPageModule = None
+
+try:
+    from models.admindashboard.financas import FinancasPage as FinancasPageModule
+except Exception:
+    FinancasPageModule = None
+
+# ============================================================================
+# FUNÇÕES AUXILIARES
+# ============================================================================
+# Preferir a implementação central de hash se disponível
+try:
+    from core.auth import hash_password
+except Exception:
+    try:
+        from src.core.auth import hash_password
+    except Exception:
+        def hash_password(password):
+            """Função para hash de senhas (fallback local)"""
+            return hashlib.sha256(password.encode('utf-8')).hexdigest()
+
+# ============================================================================
+# COMPONENTES DO DASHBOARD
+# ============================================================================
+class AnimatedButton(QPushButton):
+    def __init__(self, text, parent=None):
+        super().__init__(text, parent)
+        self.animation = QPropertyAnimation(self, b"geometry")
+        self.animation.setDuration(150)
+        self.animation.setEasingCurve(QEasingCurve.OutCubic)
+        
+    def enterEvent(self, event):
+        self.original_rect = self.geometry()
+        self.animation.setStartValue(self.original_rect)
+        self.animation.setEndValue(QRect(
+            self.original_rect.x(),
+            self.original_rect.y(),
+            self.original_rect.width() + 5,
+            self.original_rect.height()
+        ))
+        self.animation.start()
+        super().enterEvent(event)
+        
+    def leaveEvent(self, event):
+        self.animation.setStartValue(self.geometry())
+        self.animation.setEndValue(self.original_rect)
+        self.animation.start()
+        super().leaveEvent(event)
+
+
+class GradientHeader(QWidget):
+    def __init__(self, title, gif_path: Path | str | None = None, logo_size=(72, 72)):
+        super().__init__()
+        self.title = title
+        self.setFixedHeight(120)
+
+        # Layout: optional logo at left and centered title
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(20, 10, 20, 10)
+        layout.setSpacing(10)
+
+        self.logo_label = QLabel()
+        self.logo_label.setFixedSize(logo_size[0], logo_size[1])
+        self.logo_label.setVisible(False)
+
+        self.title_label = QLabel(self.title)
+        self.title_label.setStyleSheet("color: #000000; font-weight: 700;")
+        font = QFont('Segoe UI', 18, QFont.Bold)
+        self.title_label.setFont(font)
+        self.title_label.setAlignment(Qt.AlignCenter)
+
+        layout.addWidget(self.logo_label)
+        layout.addStretch()
+        layout.addWidget(self.title_label)
+        layout.addStretch()
+
+        # Load GIF from provided path or default location (same folder)
+        p = None
+        if gif_path:
+            p = Path(gif_path)
+        else:
+            p = Path(__file__).resolve().parent / "logo.gif"
+
+        try:
+            if p and p.exists():
+                movie = QMovie(str(p))
+                if movie.isValid():
+                    movie.setCacheMode(QMovie.CacheAll)
+                    movie.setScaledSize(self.logo_label.size())
+                    movie.setLoopCount(0)  # infinito
+                    self.logo_label.setMovie(movie)
+                    self.logo_label.setVisible(True)
+                    movie.start()
+        except Exception:
+            # falhar silenciosamente mantendo apenas o título
+            pass
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        gradient = QLinearGradient(0, 0, self.width(), 0)
+        gradient.setColorAt(0, QColor(TEAL_PRIMARY))
+        gradient.setColorAt(1, QColor(TEAL_LIGHT))
+        painter.fillRect(self.rect(), QBrush(gradient))
+        # Title rendered by QLabel in layout
+
+
+
+class DashboardCard(QWidget):
+    """Widget para exibir cards de resumo no dashboard"""
+    
+    def __init__(self, title, value, icon="", color=TEAL_PRIMARY, parent=None):
+        super().__init__(parent)
+        self.setFixedHeight(120)
+        
+        layout = QVBoxLayout()
+        layout.setContentsMargins(20, 15, 20, 15)
+        
+        # Título
+        title_label = QLabel(title)
+        title_label.setStyleSheet(f"""
+            color: {DARK_GRAY};
+            font-size: 14px;
+            font-weight: bold;
+        """)
+        
+        # Valor
+        value_label = QLabel(str(value))
+        value_label.setStyleSheet(f"""
+            color: {color};
+            font-size: 28px;
+            font-weight: bold;
+            margin: 5px 0;
+        """)
+        
+        layout.addWidget(title_label)
+        layout.addWidget(value_label)
+        layout.addStretch()
+        
+        self.setLayout(layout)
+        self.setStyleSheet(f"""
+            QWidget {{
+                background: {WHITE};
+                border-radius: 10px;
+                border: 1px solid {GRAY_LIGHT};
+            }}
+            QWidget:hover {{
+                border: 2px solid {color};
+            }}
+        """)
+
+
+# ============================================================================
+# PÁGINAS DO DASHBOARD (SIMPLIFICADAS PARA DEMONSTRAÇÃO)
+# ============================================================================
+class HomePage(QWidget):
+    def __init__(self):
+        super().__init__()
+        layout = QVBoxLayout()
+        layout.setContentsMargins(30, 30, 30, 30)
+        
+        title = QLabel("Dashboard Principal")
+        title.setStyleSheet(f"font-size: 24px; font-weight: bold; color: {DARK_GRAY};")
+        
+        # Cards de resumo
+        cards_layout = QHBoxLayout()
+        cards_layout.addWidget(DashboardCard("Total de Produtos", "1,245", color=TEAL_PRIMARY))
+        cards_layout.addWidget(DashboardCard("Vendas do Mês", "R$ 89.420", color=VERDE_PRINCIPAL))
+        cards_layout.addWidget(DashboardCard("Clientes Ativos", "342", color=AZUL_CARRREGADO))
+        cards_layout.addWidget(DashboardCard("Pedidos Pendentes", "23", color=ORANGE_ALERT))
+        
+        layout.addWidget(title)
+        layout.addLayout(cards_layout)
+        layout.addStretch()
+        self.setLayout(layout)
+
+
+class ProdutoPage(QWidget):
+    def __init__(self):
+        super().__init__()
+        layout = QVBoxLayout()
+        layout.setContentsMargins(30, 30, 30, 30)
+        
+        title = QLabel("Gerenciamento de Produtos")
+        title.setStyleSheet(f"font-size: 24px; font-weight: bold; color: {DARK_GRAY};")
+        
+        # Simulação de tabela de produtos
+        table_info = QLabel("Tabela de produtos seria exibida aqui\n\nFuncionalidades:\n• Cadastrar novo produto\n• Editar produto existente\n• Excluir produto\n• Pesquisar produtos\n• Gerenciar estoque")
+        table_info.setStyleSheet(f"background: {WHITE_NEUTRAL}; padding: 20px; border-radius: 10px;")
+        
+        layout.addWidget(title)
+        layout.addWidget(table_info)
+        layout.addStretch()
+        self.setLayout(layout)
+
+
+class LotePage(QWidget):
+    def __init__(self):
+        super().__init__()
+        layout = QVBoxLayout()
+        layout.setContentsMargins(30, 30, 30, 30)
+        
+        title = QLabel("Controle de Lotes")
+        title.setStyleSheet(f"font-size: 24px; font-weight: bold; color: {DARK_GRAY};")
+        
+        info = QLabel("Controle de lotes e validade de produtos\n\nFuncionalidades:\n• Registrar novo lote\n• Acompanhar validade\n• Transferir entre estoques\n• Gerar relatórios")
+        info.setStyleSheet(f"background: {WHITE_NEUTRAL}; padding: 20px; border-radius: 10px;")
+        
+        layout.addWidget(title)
+        layout.addWidget(info)
+        layout.addStretch()
+        self.setLayout(layout)
+
+
+class VendaPage(QWidget):
+    def __init__(self):
+        super().__init__()
+        layout = QVBoxLayout()
+        layout.setContentsMargins(30, 30, 30, 30)
+        
+        title = QLabel("Registro de Vendas")
+        title.setStyleSheet(f"font-size: 24px; font-weight: bold; color: {DARK_GRAY};")
+        
+        info = QLabel("Sistema de vendas e emissão de notas fiscais\n\nFuncionalidades:\n• Nova venda\n• Histórico de vendas\n• Relatórios financeiros\n• Cupons fiscais")
+        info.setStyleSheet(f"background: {WHITE_NEUTRAL}; padding: 20px; border-radius: 10px;")
+        
+        layout.addWidget(title)
+        layout.addWidget(info)
+        layout.addStretch()
+        self.setLayout(layout)
+
+
+class UsuarioPage(QWidget):
+    def __init__(self):
+        super().__init__()
+        layout = QVBoxLayout()
+        layout.setContentsMargins(30, 30, 30, 30)
+        
+        title = QLabel("Gerenciamento de Usuários")
+        title.setStyleSheet(f"font-size: 24px; font-weight: bold; color: {DARK_GRAY};")
+        
+        info = QLabel("Cadastro e controle de acessos de usuários\n\nFuncionalidades:\n• Novo usuário\n• Editar permissões\n• Resetar senhas\n• Histórico de acesso")
+        info.setStyleSheet(f"background: {WHITE_NEUTRAL}; padding: 20px; border-radius: 10px;")
+        
+        layout.addWidget(title)
+        layout.addWidget(info)
+        layout.addStretch()
+        self.setLayout(layout)
+
+
+class FinancasPage(QWidget):
+    def __init__(self):
+        super().__init__()
+        layout = QVBoxLayout()
+        layout.setContentsMargins(30, 30, 30, 30)
+        title = QLabel("Finanças")
+        title.setStyleSheet(f"font-size: 24px; font-weight: bold; color: {DARK_GRAY};")
+        info = QLabel("Painel financeiro e relatórios\n\nFuncionalidades:\n• Balancetes\n• Entradas e Saídas\n• Relatórios financeiros")
+        info.setStyleSheet(f"background: {WHITE_NEUTRAL}; padding: 20px; border-radius: 10px;")
+        layout.addWidget(title)
+        layout.addWidget(info)
+        layout.addStretch()
+        self.setLayout(layout)
+
+
+class FornecedorPage(QWidget):
+    def __init__(self):
+        super().__init__()
+        layout = QVBoxLayout()
+        layout.setContentsMargins(30, 30, 30, 30)
+        
+        title = QLabel("Cadastro de Fornecedores")
+        title.setStyleSheet(f"font-size: 24px; font-weight: bold; color: {DARK_GRAY};")
+        
+        info = QLabel("Controle de fornecedores e compras\n\nFuncionalidades:\n• Cadastrar fornecedor\n• Pedidos de compra\n• Contas a pagar\n• Avaliação de fornecedores")
+        info.setStyleSheet(f"background: {WHITE_NEUTRAL}; padding: 20px; border-radius: 10px;")
+        
+        layout.addWidget(title)
+        layout.addWidget(info)
+        layout.addStretch()
+        self.setLayout(layout)
+
+
+# ============================================================================
+# PÁGINAS DO DASHBOARD DO USUÁRIO
+# ============================================================================
+class UserVendaPage(QWidget):
+    """Página de Vendas para usuário comum"""
+    def __init__(self):
+        super().__init__()
+        layout = QVBoxLayout()
+        layout.setContentsMargins(30, 30, 30, 30)
+        
+        # Título
+        title = QLabel(" Ponto de Venda")
+        title.setStyleSheet(f"""
+            font-size: 28px; 
+            font-weight: bold; 
+            color: {TEAL_DARK};
+            margin-bottom: 20px;
+        """)
+        
+        # Cards de informações
+        grid_layout = QGridLayout()
+        grid_layout.setSpacing(20)
+        
+        # Card de Nova Venda
+        nova_venda_card = QWidget()
+        nova_venda_card.setStyleSheet(f"""
+            QWidget {{
+                background: {SURFACE_CARD};
+                border-radius: 12px;
+                border: 1px solid {BORDER_DIVIDER};
+                padding: 20px;
+            }}
+            QWidget:hover {{
+                border: 2px solid {TEAL_PRIMARY};
+                box-shadow: 0 4px 12px rgba(0, 150, 136, 0.15);
+            }}
+        """)
+        nova_venda_layout = QVBoxLayout(nova_venda_card)
+        
+        nova_venda_title = QLabel(" Nova Venda")
+        nova_venda_title.setStyleSheet(f"""
+            font-size: 20px;
+            font-weight: bold;
+            color: {TEAL_DARK};
+            margin-bottom: 10px;
+        """)
+        
+        nova_venda_desc = QLabel("Inicie uma nova venda para cliente\n• Busque produtos\n• Aplique descontos\n• Emita cupom fiscal")
+        nova_venda_desc.setStyleSheet(f"""
+            font-size: 14px;
+            color: {TEXT_SECONDARY};
+            line-height: 1.4;
+        """)
+        
+        nova_venda_btn = QPushButton("Abrir PDV")
+        nova_venda_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {TEAL_PRIMARY};
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 12px;
+                font-weight: bold;
+                font-size: 15px;
+                margin-top: 15px;
+            }}
+            QPushButton:hover {{
+                background-color: {TEAL_DARK};
+            }}
+        """)
+        nova_venda_btn.setCursor(Qt.PointingHandCursor)
+        
+        nova_venda_layout.addWidget(nova_venda_title)
+        nova_venda_layout.addWidget(nova_venda_desc)
+        nova_venda_layout.addWidget(nova_venda_btn)
+        nova_venda_layout.addStretch()
+        
+        # Card de Vendas Recentes
+        vendas_recentes_card = QWidget()
+        vendas_recentes_card.setStyleSheet(f"""
+            QWidget {{
+                background: {SURFACE_CARD};
+                border-radius: 12px;
+                border: 1px solid {BORDER_DIVIDER};
+                padding: 20px;
+            }}
+        """)
+        vendas_recentes_layout = QVBoxLayout(vendas_recentes_card)
+        
+        vendas_recentes_title = QLabel(" Vendas Hoje")
+        vendas_recentes_title.setStyleSheet(f"""
+            font-size: 20px;
+            font-weight: bold;
+            color: {TEAL_DARK};
+            margin-bottom: 10px;
+        """)
+        
+        vendas_recentes_info = QLabel("Total: R$ 2.450,00\nQuantidade: 12 vendas\nTicket médio: R$ 204,17")
+        vendas_recentes_info.setStyleSheet(f"""
+            font-size: 14px;
+            color: {TEXT_SECONDARY};
+            line-height: 1.6;
+            background: {BACKGROUND_LIGHT};
+            padding: 15px;
+            border-radius: 8px;
+        """)
+        
+        vendas_recentes_layout.addWidget(vendas_recentes_title)
+        vendas_recentes_layout.addWidget(vendas_recentes_info)
+        vendas_recentes_layout.addStretch()
+        
+        # Adicionar cards ao grid
+        grid_layout.addWidget(nova_venda_card, 0, 0)
+        grid_layout.addWidget(vendas_recentes_card, 0, 1)
+        
+        # Lista de produtos populares
+        produtos_populares_card = QWidget()
+        produtos_populares_card.setStyleSheet(f"""
+            QWidget {{
+                background: {SURFACE_CARD};
+                border-radius: 12px;
+                border: 1px solid {BORDER_DIVIDER};
+                padding: 20px;
+            }}
+        """)
+        produtos_populares_layout = QVBoxLayout(produtos_populares_card)
+        
+        produtos_populares_title = QLabel(" Produtos Mais Vendidos")
+        produtos_populares_title.setStyleSheet(f"""
+            font-size: 20px;
+            font-weight: bold;
+            color: {TEAL_DARK};
+            margin-bottom: 15px;
+        """)
+        
+        produtos_lista = QLabel(
+            "1. Paracetamol 500mg - 45 unidades\n"
+            "2. Dipirona 500mg - 38 unidades\n"
+            "3. Omeprazol 20mg - 32 unidades\n"
+            "4. Amoxicilina 500mg - 28 unidades\n"
+            "5. Losartana 50mg - 25 unidades"
+        )
+        produtos_lista.setStyleSheet(f"""
+            font-size: 14px;
+            color: {TEXT_PRIMARY};
+            line-height: 1.6;
+            background: {BACKGROUND_LIGHT};
+            padding: 15px;
+            border-radius: 8px;
+        """)
+        
+        produtos_populares_layout.addWidget(produtos_populares_title)
+        produtos_populares_layout.addWidget(produtos_lista)
+        produtos_populares_layout.addStretch()
+        
+        grid_layout.addWidget(produtos_populares_card, 1, 0, 1, 2)
+        
+        # Adicionar ao layout principal
+        layout.addWidget(title)
+        layout.addLayout(grid_layout)
+        layout.addStretch()
+        
+        self.setLayout(layout)
+
+
+class UserCatalogoPage(QWidget):
+    """Página de Catálogo para usuário comum"""
+    def __init__(self):
+        super().__init__()
+        layout = QVBoxLayout()
+        layout.setContentsMargins(30, 30, 30, 30)
+        
+        # Título e barra de busca
+        header_widget = QWidget()
+        header_layout = QHBoxLayout(header_widget)
+        
+        title = QLabel(" Catálogo de Produtos")
+        title.setStyleSheet(f"""
+            font-size: 28px; 
+            font-weight: bold; 
+            color: {TEAL_DARK};
+        """)
+        
+        search_widget = QWidget()
+        search_layout = QHBoxLayout(search_widget)
+        search_layout.setContentsMargins(0, 0, 0, 0)
+        
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("Buscar produto...")
+        self.search_input.setMinimumHeight(40)
+        self.search_input.setStyleSheet(f"""
+            QLineEdit {{
+                background: {SURFACE_CARD};
+                border: 1px solid {BORDER_DIVIDER};
+                border-radius: 8px;
+                padding: 0 15px;
+                font-size: 14px;
+                color: {TEXT_PRIMARY};
+            }}
+            QLineEdit:focus {{
+                border: 2px solid {TEAL_LIGHT};
+            }}
+        """)
+        
+        search_btn = QPushButton("")
+        search_btn.setFixedSize(40, 40)
+        search_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {TEAL_PRIMARY};
+                color: white;
+                border: none;
+                border-radius: 8px;
+                font-size: 16px;
+            }}
+            QPushButton:hover {{
+                background-color: {TEAL_DARK};
+            }}
+        """)
+        search_btn.setCursor(Qt.PointingHandCursor)
+        
+        search_layout.addWidget(self.search_input)
+        search_layout.addWidget(search_btn)
+        
+        header_layout.addWidget(title)
+        header_layout.addStretch()
+        header_layout.addWidget(search_widget)
+        
+        # Cards de produtos (simulação)
+        produtos_grid = QGridLayout()
+        produtos_grid.setSpacing(20)
+        
+        # Produtos de exemplo
+        produtos = [
+            {"nome": "Paracetamol 500mg", "categoria": "Analgésico", "estoque": "45", "preco": "R$ 12,90"},
+            {"nome": "Dipirona 500mg", "categoria": "Analgésico", "estoque": "38", "preco": "R$ 8,50"},
+            {"nome": "Omeprazol 20mg", "categoria": "Gastro", "estoque": "32", "preco": "R$ 24,90"},
+            {"nome": "Amoxicilina 500mg", "categoria": "Antibiótico", "estoque": "28", "preco": "R$ 32,50"},
+            {"nome": "Losartana 50mg", "categoria": "Cardio", "estoque": "25", "preco": "R$ 28,90"},
+            {"nome": "Sinvastatina 20mg", "categoria": "Cardio", "estoque": "18", "preco": "R$ 35,00"},
+            {"nome": "Glibenclamida 5mg", "categoria": "Diabetes", "estoque": "22", "preco": "R$ 18,50"},
+            {"nome": "Insulina NPH", "categoria": "Diabetes", "estoque": "15", "preco": "R$ 89,90"},
+        ]
+        
+        for i, produto in enumerate(produtos):
+            card = QWidget()
+            card.setStyleSheet(f"""
+                QWidget {{
+                    background: {SURFACE_CARD};
+                    border-radius: 12px;
+                    border: 1px solid {BORDER_DIVIDER};
+                    padding: 20px;
+                    min-width: 200px;
+                }}
+                QWidget:hover {{
+                    border: 2px solid {TEAL_LIGHT};
+                    box-shadow: 0 4px 12px rgba(77, 182, 172, 0.1);
+                }}
+            """)
+            
+            card_layout = QVBoxLayout(card)
+            
+            # Nome do produto
+            nome_label = QLabel(produto["nome"])
+            nome_label.setStyleSheet(f"""
+                font-size: 16px;
+                font-weight: bold;
+                color: {TEAL_DARK};
+                margin-bottom: 5px;
+            """)
+            
+            # Categoria
+            cat_label = QLabel(f"Categoria: {produto['categoria']}")
+            cat_label.setStyleSheet(f"""
+                font-size: 13px;
+                color: {TEXT_SECONDARY};
+                margin-bottom: 5px;
+            """)
+            
+            # Estoque
+            estoque_label = QLabel(f"Estoque: {produto['estoque']} unidades")
+            estoque_label.setStyleSheet(f"""
+                font-size: 13px;
+                color: {TEXT_SECONDARY};
+                margin-bottom: 5px;
+            """)
+            
+            # Preço
+            preco_label = QLabel(f"Preço: {produto['preco']}")
+            preco_label.setStyleSheet(f"""
+                font-size: 15px;
+                font-weight: bold;
+                color: {TEAL_PRIMARY};
+                margin-bottom: 10px;
+            """)
+            
+            # Botão de adicionar à venda
+            add_btn = QPushButton("Adicionar à Venda")
+            add_btn.setStyleSheet(f"""
+                QPushButton {{
+                    background-color: {TEAL_LIGHT};
+                    color: {TEXT_PRIMARY};
+                    border: none;
+                    border-radius: 6px;
+                    padding: 8px;
+                    font-size: 13px;
+                    font-weight: 500;
+                }}
+                QPushButton:hover {{
+                    background-color: {TEAL_PRIMARY};
+                    color: white;
+                }}
+            """)
+            add_btn.setCursor(Qt.PointingHandCursor)
+            
+            card_layout.addWidget(nome_label)
+            card_layout.addWidget(cat_label)
+            card_layout.addWidget(estoque_label)
+            card_layout.addWidget(preco_label)
+            card_layout.addWidget(add_btn)
+            card_layout.addStretch()
+            
+            # Posicionar no grid (2x4)
+            row = i // 4
+            col = i % 4
+            produtos_grid.addWidget(card, row, col)
+        
+        # Adicionar ao layout principal
+        layout.addWidget(header_widget)
+        layout.addLayout(produtos_grid)
+        layout.addStretch()
+        
+        self.setLayout(layout)
+
+
+# ============================================================================
+# DASHBOARD DO USUÁRIO (SIMPLIFICADO)
+# ============================================================================
+class UserDashboard(QMainWindow):
+    def __init__(self, current_user: dict | None = None):
+        super().__init__()
+        self.current_user = current_user
+        self.setWindowTitle('Dashboard do Usuário - Kamba Farma')
+        self.resize(1200, 800)
+        self.setMinimumSize(800, 600)
+        
+        # Configurar janela sem bordas
+        self.setWindowFlag(Qt.FramelessWindowHint)
+        
+        central = QWidget()
+        outer_layout = QVBoxLayout(central)
+        outer_layout.setContentsMargins(0, 0, 0, 0)
+        outer_layout.setSpacing(0)
+        
+        # Barra de título customizada
+        title_bar = QWidget()
+        title_bar.setObjectName('titleBar')
+        title_layout = QHBoxLayout(title_bar)
+        title_layout.setContentsMargins(8, 4, 8, 4)
+        title_layout.setSpacing(6)
+        
+        title_label = QLabel('KAMBA FARMA - Usuário')
+        title_label.setStyleSheet('font-weight:700;')
+        title_layout.addWidget(title_label)
+        title_layout.addStretch()
+        
+        self.btn_minimize = QPushButton('—')
+        self.btn_maximize = QPushButton('▢')
+        self.btn_close = QPushButton('')
+        for b in (self.btn_minimize, self.btn_maximize, self.btn_close):
+            b.setFixedSize(36, 26)
+            b.setCursor(Qt.PointingHandCursor)
+            b.setFlat(True)
+            title_layout.addWidget(b)
+        
+        self.btn_minimize.clicked.connect(self.showMinimized)
+        self.btn_maximize.clicked.connect(self.toggle_maximize_restore)
+        self.btn_close.clicked.connect(self.close)
+        
+        outer_layout.addWidget(title_bar)
+        
+        # Área de conteúdo principal
+        content_widget = QWidget()
+        main_layout = QHBoxLayout(content_widget)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+        
+        # Menu lateral do usuário
+        menu = QWidget()
+        menu.setFixedWidth(220)
+        menu.setStyleSheet(f"background: {TEAL_DARK};")
+        menu_layout = QVBoxLayout(menu)
+        menu_layout.setContentsMargins(0, 0, 0, 20)
+        menu_layout.setSpacing(0)
+        
+        # Header do menu
+        header = QWidget()
+        header.setFixedHeight(120)
+        header.setStyleSheet(f"background: {TEAL_PRIMARY};")
+        header_layout = QVBoxLayout(header)
+        header_layout.setContentsMargins(20, 20, 20, 20)
+        
+        user_name = QLabel(f" {current_user.get('username', 'Usuário')}" if current_user else " Usuário")
+        user_name.setStyleSheet(f"""
+            color: white;
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        """)
+        
+        user_role = QLabel("Operador de Caixa" if current_user and current_user.get('role') == 'user' else "Funcionário")
+        user_role.setStyleSheet(f"""
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 13px;
+        """)
+        
+        header_layout.addWidget(user_name)
+        header_layout.addWidget(user_role)
+        header_layout.addStretch()
+        
+        menu_layout.addWidget(header)
+        
+        # Botões do menu do usuário
+        buttons_widget = QWidget()
+        buttons_layout = QVBoxLayout(buttons_widget)
+        buttons_layout.setContentsMargins(15, 20, 15, 0)
+        buttons_layout.setSpacing(5)
+        
+        menu_items = [
+            ("", "Venda", 0),
+            ("", "Catálogo", 1),
+        ]
+        
+        self.menu_buttons = []
+        for icon, text, index in menu_items:
+            btn = AnimatedButton(f"  {icon}  {text}")
+            btn.setObjectName(f"btn_{text.lower()}")
+            btn.setProperty("page_index", index)
+            btn.clicked.connect(self.on_menu_clicked)
+            btn.setCursor(Qt.PointingHandCursor)
+            btn.setStyleSheet(self._get_user_button_style(False))
+            buttons_layout.addWidget(btn)
+            self.menu_buttons.append(btn)
+        
+        buttons_layout.addStretch()
+        
+        # Botão de logout
+        logout_btn = QPushButton("  Sair")
+        logout_btn.setCursor(Qt.PointingHandCursor)
+        logout_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: rgba(255, 255, 255, 0.1);
+                color: white;
+                border: none;
+                border-radius: 8px;
+                padding: 12px;
+                text-align: left;
+                font-family: 'Segoe UI';
+                font-size: 14px;
+                margin-top: 10px;
+            }}
+            QPushButton:hover {{
+                background-color: rgba(255, 255, 255, 0.2);
+            }}
+        """)
+        logout_btn.clicked.connect(self.logout)
+        
+        buttons_layout.addWidget(logout_btn)
+        menu_layout.addWidget(buttons_widget)
+        
+        # Stacked pages para o usuário
+        self.stack = QStackedWidget()
+        self.stack.setObjectName("user_stack")
+        
+        # Adicionar páginas do usuário
+        self.stack.addWidget(UserVendaPage())      # index 0
+        self.stack.addWidget(UserCatalogoPage())   # index 1
+        
+        main_layout.addWidget(menu)
+        main_layout.addWidget(self.stack, 1)
+        
+        outer_layout.addWidget(content_widget, 1)
+        self.setCentralWidget(central)
+        self.apply_user_styles()
+        
+        # Seleciona Venda por padrão
+        self.select_menu_item(0)
+    
+    def _get_user_button_style(self, selected=False):
+        if selected:
+            return f"""
+                QPushButton {{
+                    background-color: white;
+                    color: {TEAL_DARK};
+                    border: none;
+                    border-radius: 8px;
+                    padding: 12px;
+                    text-align: left;
+                    font-family: 'Segoe UI';
+                    font-size: 14px;
+                    font-weight: bold;
+                }}
+                QPushButton:hover {{
+                    background-color: rgba(255, 255, 255, 0.9);
+                }}
+            """
+        else:
+            return f"""
+                QPushButton {{
+                    background-color: transparent;
+                    color: white;
+                    border: none;
+                    border-radius: 8px;
+                    padding: 12px;
+                    text-align: left;
+                    font-family: 'Segoe UI';
+                    font-size: 14px;
+                }}
+                QPushButton:hover {{
+                    background-color: rgba(255, 255, 255, 0.1);
+                }}
+            """
+    
+    def on_menu_clicked(self):
+        sender = self.sender()
+        index = sender.property("page_index")
+        self.select_menu_item(index)
+    
+    def select_menu_item(self, index):
+        # Remove seleção de todos os botões
+        for btn in self.menu_buttons:
+            btn.setStyleSheet(self._get_user_button_style(False))
+        
+        # Aplica estilo ao botão selecionado
+        if index < len(self.menu_buttons):
+            self.menu_buttons[index].setStyleSheet(self._get_user_button_style(True))
+        
+        # Caso especial: se selecionar Venda (index 0), tentar carregar dinamicamente `VendaPage`
+        if index == 0:
+            try:
+                import importlib
+                import importlib.util
+
+                # tentar importar como pacote primeiro
+                try:
+                    import models.admindashboard.venda as venda_mod
+                    importlib.reload(venda_mod)
+                except ModuleNotFoundError:
+                    # fallback: carregar diretamente pelo caminho do arquivo
+                    venda_path = Path(__file__).parent / 'venda.py'
+                    if venda_path.exists():
+                        spec = importlib.util.spec_from_file_location('models.admindashboard.venda', str(venda_path))
+                        venda_mod = importlib.util.module_from_spec(spec)
+                        spec.loader.exec_module(venda_mod)
+                    else:
+                        raise
+
+                VendaClass = getattr(venda_mod, 'VendaPage', None)
+                if VendaClass:
+                    old_widget = self.stack.widget(0) if 0 < self.stack.count() else None
+                    new_widget = VendaClass()
+                    if old_widget is not None:
+                        self.stack.removeWidget(old_widget)
+                        try:
+                            old_widget.deleteLater()
+                        except Exception:
+                            pass
+                    self.stack.insertWidget(0, new_widget)
+                    self.stack.setCurrentIndex(0)
+                    return
+            except Exception as e:
+                try:
+                    QMessageBox.warning(self, 'Erro', f'Não foi possível carregar o módulo de Vendas: {e}')
+                except Exception:
+                    print('Erro ao carregar VendaPage:', e)
+                # Em caso de falha, continua com comportamento padrão
+
+        # Caso especial: se selecionar Catálogo (index 1), tentar carregar dinamicamente `CatalogoView`
+        if index == 1:
+            try:
+                import importlib
+                import importlib.util
+
+                # tentar importar como pacote primeiro
+                try:
+                    import models.admindashboard.catalogo_view as cat_mod
+                    importlib.reload(cat_mod)
+                except ModuleNotFoundError:
+                    # fallback: carregar diretamente pelo caminho do arquivo
+                    cat_path = Path(__file__).parent / '.' / 'catalogo_view.py'
+                    if cat_path.exists():
+                        spec = importlib.util.spec_from_file_location('models.admindashboard.catalogo_view', str(cat_path))
+                        cat_mod = importlib.util.module_from_spec(spec)
+                        spec.loader.exec_module(cat_mod)
+                    else:
+                        raise
+
+                CatClass = getattr(cat_mod, 'CatalogoView', None)
+                if CatClass:
+                    old_widget = self.stack.widget(1) if 1 < self.stack.count() else None
+                    new_widget = CatClass()
+                    if old_widget is not None:
+                        self.stack.removeWidget(old_widget)
+                        try:
+                            old_widget.deleteLater()
+                        except Exception:
+                            pass
+                    self.stack.insertWidget(1, new_widget)
+                    self.stack.setCurrentIndex(1)
+                    return
+            except Exception as e:
+                try:
+                    QMessageBox.warning(self, 'Erro', f'Não foi possível carregar o catálogo: {e}')
+                except Exception:
+                    print('Erro ao carregar CatalogoView:', e)
+                # Em caso de falha, continua com comportamento padrão
+
+        # Muda a página (comportamento padrão)
+        if 0 <= index < self.stack.count():
+            self.stack.setCurrentIndex(index)
+    
+    def apply_user_styles(self):
+        style = f"""
+            QMainWindow {{
+                background: {BACKGROUND_LIGHT};
+            }}
+            
+            QStackedWidget#user_stack {{
+                background: {BACKGROUND_LIGHT};
+                border: none;
+            }}
+            
+            QLabel {{
+                color: {TEXT_PRIMARY};
+                font-family: 'Segoe UI';
+            }}
+            
+            QPushButton {{
+                border-radius: 6px;
+                padding: 8px 16px;
+                font-family: 'Segoe UI';
+                transition: all 0.3s;
+            }}
+            
+            QLineEdit, QTextEdit, QComboBox {{
+                border: 1px solid {BORDER_DIVIDER};
+                border-radius: 8px;
+                padding: 10px;
+                background: {SURFACE_CARD};
+                color: {TEXT_PRIMARY};
+                selection-background-color: {TEAL_LIGHT};
+            }}
+            
+            QLineEdit:focus, QTextEdit:focus {{
+                border: 2px solid {TEAL_LIGHT};
+            }}
+            
+            #titleBar {{
+                background: {TEAL_DARK};
+            }}
+            #titleBar QLabel {{
+                color: white;
+                font-family: 'Segoe UI';
+                font-size: 14px;
+            }}
+            #titleBar QPushButton {{
+                border: none;
+                color: white;
+                background: transparent;
+            }}
+            #titleBar QPushButton:hover {{
+                background-color: rgba(255, 255, 255, 0.2);
+                border-radius: 4px;
+            }}
+        """
+        self.setStyleSheet(style)
+    
+    def toggle_maximize_restore(self):
+        """Alterna entre maximizar e restaurar a janela."""
+        if self.isMaximized():
+            self.showNormal()
+            try:
+                self.btn_maximize.setText("▢")
+            except Exception:
+                pass
+        else:
+            self.showMaximized()
+            try:
+                self.btn_maximize.setText("")
+            except Exception:
+                pass
+    
+    def logout(self):
+        """Fecha o dashboard do usuário e volta para a tela de login"""
+        self.close()
+        # Aqui normalmente abriríamos a janela de login novamente
+        # Mas como o programa é unificado, o usuário precisaria reiniciar
+
+
+# ============================================================================
+# DASHBOARD ADMINISTRATIVO (mantido como estava)
+# ============================================================================
+class AdminDashboard(QMainWindow):
+    def __init__(self, current_user: dict | None = None):
+        super().__init__()
+        self.current_user = current_user
+        self.setWindowTitle('Admin Dashboard - Kamba Farma')
+        self.resize(1200, 800)
+        self.setMinimumSize(1000, 600)
+        # Use a frameless window and provide custom title bar with controls
+        self.setWindowFlag(Qt.FramelessWindowHint)
+
+        central = QWidget()
+        outer_layout = QVBoxLayout(central)
+        outer_layout.setContentsMargins(0, 0, 0, 0)
+        outer_layout.setSpacing(0)
+
+        # Custom title bar with control buttons
+        title_bar = QWidget()
+        title_bar.setObjectName('titleBar')
+        title_layout = QHBoxLayout(title_bar)
+        title_layout.setContentsMargins(8, 4, 8, 4)
+        title_layout.setSpacing(6)
+
+        title_label = QLabel('KAMBA FARMA')
+        title_label.setStyleSheet('font-weight:700;')
+        title_layout.addWidget(title_label)
+        title_layout.addStretch()
+
+        self.btn_minimize = QPushButton('—')
+        self.btn_maximize = QPushButton('▢')
+        self.btn_close = QPushButton('')
+        for b in (self.btn_minimize, self.btn_maximize, self.btn_close):
+            b.setFixedSize(36, 26)
+            b.setCursor(Qt.PointingHandCursor)
+            b.setFlat(True)
+            title_layout.addWidget(b)
+
+        self.btn_minimize.clicked.connect(self.showMinimized)
+        self.btn_maximize.clicked.connect(self.toggle_maximize_restore)
+        self.btn_close.clicked.connect(self.close)
+
+        outer_layout.addWidget(title_bar)
+
+        # Content area (original main layout)
+        content_widget = QWidget()
+        main_layout = QHBoxLayout(content_widget)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+
+        # Side menu com gradiente
+        menu = QWidget()
+        menu.setObjectName('menu')
+        menu.setFixedWidth(260)
+        menu.setStyleSheet("background: #FFFFFF;")
+        menu_layout = QVBoxLayout(menu)
+        menu_layout.setContentsMargins(0, 0, 0, 20)
+        menu_layout.setSpacing(0)
+
+        # Header com gradiente (tenta carregar logo.gif na mesma pasta do arquivo)
+        logo_path = Path(__file__).resolve().parent / 'logo.gif'
+        header = GradientHeader('KAMBA FARMA', gif_path=logo_path)
+        menu_layout.addWidget(header)
+
+        # Informações do usuário
+        user_widget = QWidget()
+        user_widget.setStyleSheet(f"background: {TEAL_DARK};")
+        user_layout = QVBoxLayout(user_widget)
+        user_layout.setContentsMargins(20, 15, 20, 15)
+        
+        if current_user:
+            user_name = QLabel(f"Olá, {current_user.get('nome', current_user.get('username', 'Usuário'))}")
+            user_role = QLabel(f"{current_user.get('cargo', current_user.get('role', 'Administrador'))}")
+        else:
+            user_name = QLabel("Administrador")
+            user_role = QLabel("Sistema")
+            
+        user_name.setStyleSheet(f"color: #000000; font-size: 16px; font-weight: bold;")
+        user_role.setStyleSheet(f"color: rgba(0,0,0,0.8); font-size: 13px;")
+        
+        user_layout.addWidget(user_name)
+        user_layout.addWidget(user_role)
+        menu_layout.addWidget(user_widget)
+
+        # Botões do menu
+        buttons_widget = QWidget()
+        buttons_layout = QVBoxLayout(buttons_widget)
+        buttons_layout.setContentsMargins(15, 20, 15, 0)
+        buttons_layout.setSpacing(8)
+
+        menu_items = [
+            ("", "Home", 0),
+            ("", "Produtos", 1),
+            ("", "Lotes", 2),
+            ("", "Vendas", 3),
+            ("", "Finanças", 4),
+            ("", "Usuários", 5),
+            ("", "Fornecedores", 6)
+        ]
+
+        self.menu_buttons = []
+        for icon, text, index in menu_items:
+            btn = AnimatedButton(f"  {icon}  {text}")
+            btn.setObjectName(f"btn_{text.lower().replace(' ', '_')}")
+            btn.setProperty("page_index", index)
+            btn.clicked.connect(self.on_menu_clicked)
+            btn.setCursor(Qt.PointingHandCursor)
+            btn.setStyleSheet(self._get_button_style(False))
+            buttons_layout.addWidget(btn)
+            self.menu_buttons.append(btn)
+
+        buttons_layout.addStretch()
+        
+        # Botão de logout - volta para a tela de login
+        logout_btn = QPushButton("  Sair")
+        logout_btn.setCursor(Qt.PointingHandCursor)
+        logout_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: rgba(0, 0, 0, 0.04);
+                color: #000000;
+                border: none;
+                border-radius: 8px;
+                padding: 12px;
+                text-align: left;
+                font-family: 'Segoe UI';
+                font-size: 14px;
+                margin-top: 10px;
+            }}
+            QPushButton:hover {{
+                background-color: {VERDE_PRINCIPAL};
+                color: white;
+            }}
+        """)
+        logout_btn.clicked.connect(self.logout)
+        buttons_layout.addWidget(logout_btn)
+        menu_layout.addWidget(buttons_widget)
+
+        # Stacked pages
+        self.stack = QStackedWidget()
+        self.stack.setObjectName("stack")
+        
+        # Adiciona páginas (usa implementações modulares quando disponíveis)
+        # Home (fallback para a Home simples definida abaixo)
+        if HomePageModule:
+            self.stack.addWidget(HomePageModule())
+        else:
+            self.stack.addWidget(HomePage())               # index 0
+
+        # Produtos
+        if ProdutoPageModule:
+            self.stack.addWidget(ProdutoPageModule())
+        else:
+            self.stack.addWidget(ProdutoPage())            # index 1
+
+        # Lotes
+        if LotePageModule:
+            self.stack.addWidget(LotePageModule())
+        else:
+            self.stack.addWidget(LotePage())               # index 2
+
+        # Vendas
+        if VendaPageModule:
+            self.stack.addWidget(VendaPageModule())
+        else:
+            self.stack.addWidget(VendaPage())              # index 3
+
+        # Finanças
+        if FinancasPageModule:
+            self.stack.addWidget(FinancasPageModule())
+        else:
+            self.stack.addWidget(FinancasPage())           # index 4 (fallback local FinancasPage)
+
+        # Usuários
+        if UsuarioPageModule:
+            self.stack.addWidget(UsuarioPageModule())
+        else:
+            self.stack.addWidget(UsuarioPage())            # index 5
+
+        # Fornecedores (não há módulo externo por enquanto, usa a versão local)
+        self.stack.addWidget(FornecedorPage())         # index 6
+
+        main_layout.addWidget(menu)
+        main_layout.addWidget(self.stack, 1)
+
+        outer_layout.addWidget(content_widget, 1)
+        self.setCentralWidget(central)
+        self.apply_styles()
+        
+        # Seleciona Home por padrão
+        self.select_menu_item(0)
+
+    def on_menu_clicked(self):
+        sender = self.sender()
+        index = sender.property("page_index")
+        self.select_menu_item(index)
+
+    def select_menu_item(self, index):
+        # Remove seleção de todos os botões
+        for btn in self.menu_buttons:
+            btn.setStyleSheet(self._get_button_style(False))
+        
+        # Aplica estilo ao botão selecionado
+        if index < len(self.menu_buttons):
+            self.menu_buttons[index].setStyleSheet(self._get_button_style(True))
+        
+        # Se for o botão Home (index 0), tentar carregar dinamicamente a implementação
+        if index == 0:
+            try:
+                import importlib, traceback
+                # Primeiro, tentar importar como pacote (quando 'models' estiver no sys.path)
+                try:
+                    import models.admindashboard.home as home_mod
+                    importlib.reload(home_mod)
+                except ModuleNotFoundError as mnfe:
+                    # Fallback: carregar diretamente o arquivo home.py ao lado deste módulo
+                    home_path = Path(__file__).parent / 'home.py'
+                    if home_path.exists():
+                        import importlib.util
+                        spec = importlib.util.spec_from_file_location('models.admindashboard.home', str(home_path))
+                        home_mod = importlib.util.module_from_spec(spec)
+                        spec.loader.exec_module(home_mod)
+                    else:
+                        raise
+
+                HomeClass = getattr(home_mod, 'HomePage', None)
+                if HomeClass:
+                    # substituir o widget existente na posição 0
+                    old_widget = self.stack.widget(0)
+                    new_widget = HomeClass()
+                    if old_widget is not None:
+                        self.stack.removeWidget(old_widget)
+                        try:
+                            old_widget.deleteLater()
+                        except Exception:
+                            pass
+                    # Insere a nova página, exibe imediatamente e retorna para evitar lógica adicional
+                    self.stack.insertWidget(0, new_widget)
+                    self.stack.setCurrentIndex(0)
+                    return
+            except Exception as e:
+                # Em caso de falha, manter o fallback local já presente
+                print('Aviso: falha ao carregar HomePage:', e)
+                # Mostrar aviso ao usuário quando possível
+                try:
+                    QMessageBox.warning(self, "Erro", f"Falha ao carregar HomePage: {e}")
+                except Exception:
+                    pass
+
+        # Se for o botão Lotes (index 2), tentar carregar dinamicamente a implementação em `lote.py`
+        if index == 2:
+            try:
+                import importlib, traceback
+                # Tentar importar como pacote primeiro
+                try:
+                    import models.admindashboard.lote as lote_mod
+                    importlib.reload(lote_mod)
+                except ModuleNotFoundError:
+                    # Fallback: carregar diretamente o arquivo lote.py
+                    lote_path = Path(__file__).parent / 'lote.py'
+                    if lote_path.exists():
+                        import importlib.util
+                        spec = importlib.util.spec_from_file_location('models.admindashboard.lote', str(lote_path))
+                        lote_mod = importlib.util.module_from_spec(spec)
+                        spec.loader.exec_module(lote_mod)
+                    else:
+                        raise
+
+                LoteClass = getattr(lote_mod, 'LotePage', None)
+                if LoteClass:
+                    old_widget = self.stack.widget(2)
+                    new_widget = LoteClass()
+                    if old_widget is not None:
+                        self.stack.removeWidget(old_widget)
+                        try:
+                            old_widget.deleteLater()
+                        except Exception:
+                            pass
+                    self.stack.insertWidget(2, new_widget)
+                    self.stack.setCurrentIndex(2)
+                    return
+            except Exception as e:
+                print('Aviso: falha ao carregar LotePage:', e)
+                try:
+                    QMessageBox.warning(self, "Erro", f"Falha ao carregar LotePage: {e}")
+                except Exception:
+                    pass
+
+        # Se for o botão Vendas (index 3), tentar carregar dinamicamente a implementação em `venda.py`
+        if index == 3:
+            try:
+                import importlib, traceback
+                # Tentar importar como pacote primeiro
+                try:
+                    import models.admindashboard.venda as venda_mod
+                    importlib.reload(venda_mod)
+                except ModuleNotFoundError:
+                    # Fallback: carregar diretamente o arquivo venda.py
+                    venda_path = Path(__file__).parent / 'venda.py'
+                    if venda_path.exists():
+                        import importlib.util
+                        spec = importlib.util.spec_from_file_location('models.admindashboard.venda', str(venda_path))
+                        venda_mod = importlib.util.module_from_spec(spec)
+                        spec.loader.exec_module(venda_mod)
+                    else:
+                        raise
+
+                VendaClass = getattr(venda_mod, 'VendaPage', None)
+                if VendaClass:
+                    old_widget = self.stack.widget(3)
+                    new_widget = VendaClass()
+                    if old_widget is not None:
+                        self.stack.removeWidget(old_widget)
+                        try:
+                            old_widget.deleteLater()
+                        except Exception:
+                            pass
+                    self.stack.insertWidget(3, new_widget)
+                    self.stack.setCurrentIndex(3)
+                    return
+            except Exception as e:
+                print('Aviso: falha ao carregar VendaPage:', e)
+                try:
+                    QMessageBox.warning(self, "Erro", f"Falha ao carregar VendaPage: {e}")
+                except Exception:
+                    pass
+
+        # Se for o botão Finanças (index 4), tentar carregar dinamicamente a implementação em `financas.py`
+        if index == 4:
+            try:
+                import importlib, traceback
+                # Tentar importar como pacote primeiro
+                try:
+                    import models.admindashboard.financas as financas_mod
+                    importlib.reload(financas_mod)
+                except ModuleNotFoundError:
+                    # Fallback: carregar diretamente o arquivo financas.py
+                    financas_path = Path(__file__).parent / 'financas.py'
+                    if financas_path.exists():
+                        import importlib.util
+                        spec = importlib.util.spec_from_file_location('models.admindashboard.financas', str(financas_path))
+                        financas_mod = importlib.util.module_from_spec(spec)
+                        spec.loader.exec_module(financas_mod)
+                    else:
+                        raise
+
+                FinancasClass = getattr(financas_mod, 'FinancasPage', None)
+                if FinancasClass:
+                    old_widget = self.stack.widget(4)
+                    new_widget = FinancasClass()
+                    if old_widget is not None:
+                        self.stack.removeWidget(old_widget)
+                        try:
+                            old_widget.deleteLater()
+                        except Exception:
+                            pass
+                    self.stack.insertWidget(4, new_widget)
+                    self.stack.setCurrentIndex(4)
+                    return
+            except Exception as e:
+                print('Aviso: falha ao carregar FinancasPage:', e)
+                try:
+                    QMessageBox.warning(self, "Erro", f"Falha ao carregar FinancasPage: {e}")
+                except Exception:
+                    pass
+
+        # Se for o botão Usuários (index 5), tentar carregar dinamicamente a implementação em `usuario.py`
+        if index == 5:
+            try:
+                import importlib, traceback
+                # Tentar importar como pacote primeiro
+                try:
+                    import models.admindashboard.usuario as usuario_mod
+                    importlib.reload(usuario_mod)
+                except ModuleNotFoundError:
+                    # Fallback: carregar diretamente o arquivo usuario.py
+                    usuario_path = Path(__file__).parent / 'usuario.py'
+                    if usuario_path.exists():
+                        import importlib.util
+                        spec = importlib.util.spec_from_file_location('models.admindashboard.usuario', str(usuario_path))
+                        usuario_mod = importlib.util.module_from_spec(spec)
+                        spec.loader.exec_module(usuario_mod)
+                    else:
+                        raise
+
+                UsuarioClass = getattr(usuario_mod, 'UsuarioPage', None)
+                if UsuarioClass:
+                    old_widget = self.stack.widget(5)
+                    new_widget = UsuarioClass()
+                    if old_widget is not None:
+                        self.stack.removeWidget(old_widget)
+                        try:
+                            old_widget.deleteLater()
+                        except Exception:
+                            pass
+                    self.stack.insertWidget(5, new_widget)
+                    self.stack.setCurrentIndex(5)
+                    return
+            except Exception as e:
+                print('Aviso: falha ao carregar UsuarioPage:', e)
+                try:
+                    QMessageBox.warning(self, "Erro", f"Falha ao carregar UsuarioPage: {e}")
+                except Exception:
+                    pass
+
+        # Muda a página
+        # Garante que o índice solicitado exista
+        if 0 <= index < self.stack.count():
+            self.stack.setCurrentIndex(index)
+        else:
+            # índice inválido: selecionar 0 por segurança
+            self.stack.setCurrentIndex(0)
+
+    def _get_button_style(self, selected=False):
+        if selected:
+            return f"""
+                QPushButton {{
+                    background-color: {TEAL_PRIMARY};
+                    color: #000000;
+                    border: none;
+                    border-radius: 8px;
+                    padding: 15px;
+                    text-align: left;
+                    font-family: 'Segoe UI';
+                    font-size: 14px;
+                    font-weight: bold;
+                }}
+                QPushButton:hover {{
+                    background-color: {TEAL_DARK};
+                }}
+            """
+        else:
+            return f"""
+                QPushButton {{
+                    background-color: transparent;
+                    color: {DARK_GRAY};
+                    border: none;
+                    border-radius: 8px;
+                    padding: 15px;
+                    text-align: left;
+                    font-family: 'Segoe UI';
+                    font-size: 14px;
+                }}
+                QPushButton:hover {{
+                    background-color: {GRAY_LIGHT};
+                    color: {TEAL_DARK};
+                }}
+            """
+
+    def apply_styles(self):
+        style = f"""
+            QMainWindow {{
+                background: {WHITE};
+            }}
+
+            QWidget#menu {{
+                background: {WHITE_NEUTRAL};
+                border-right: 1px solid {GRAY_LIGHT};
+            }}
+
+            QStackedWidget#stack {{
+                background: {WHITE};
+                border: none;
+            }}
+
+            /* Estilos para labels */
+            QLabel {{
+                color: #000000;
+                font-family: 'Segoe UI';
+            }}
+
+            /* Estilos para botões gerais */
+            QPushButton {{
+                border-radius: 6px;
+                padding: 8px 16px;
+                font-family: 'Segoe UI';
+                transition: all 0.3s;
+                color: #000000;
+                background: transparent;
+            }}
+
+            /* Estilos para input fields */
+            QLineEdit, QTextEdit, QComboBox {{
+                border: 1px solid #b36b00;
+                border-radius: 6px;
+                padding: 8px;
+                background: #FFFFFF;
+                color: #000000;
+                selection-background-color: #FFD9A6;
+            }}
+
+            QLineEdit:focus, QTextEdit:focus {{
+                border: 2px solid #e07a00;
+                background: #FFFFFF;
+            }}
+
+            /* Estilos para tabelas */
+            QTableView, QTableWidget {{
+                background: #FFFFFF;
+                alternate-background-color: #FFF7EB;
+                gridline-color: #e0a058;
+                border: 1px solid #e0a058;
+                border-radius: 4px;
+                color: #000000;
+            }}
+
+            QHeaderView::section {{
+                background-color: {TEAL_PRIMARY};
+                color: #000000;
+                padding: 8px;
+                border: none;
+                font-weight: bold;
+            }}
+
+            /* Scrollbars */
+            QScrollBar:vertical {{
+                background: #FFFFFF;
+                width: 10px;
+                border-radius: 5px;
+            }}
+
+            QScrollBar::handle:vertical {{
+                background: {TEAL_LIGHT};
+                min-height: 20px;
+                border-radius: 5px;
+            }}
+
+            QScrollBar::handle:vertical:hover {{
+                background: {TEAL_PRIMARY};
+            }}
+
+            /* Alertas */
+            .alert {{
+                background-color: {ORANGE_ALERT}20;
+                color: #000000;
+                border-left: 4px solid {ORANGE_ALERT};
+                padding: 10px;
+                border-radius: 4px;
+            }}
+        """
+        self.setStyleSheet(style)
+
+        # Aplica fonte personalizada
+        self.set_fonts()
+
+        # Estilos adicionais para a barra de título customizada
+        extra_style = """
+            #titleBar {
+                background: transparent;
+            }
+            #titleBar QLabel {
+                color: #263238;
+                font-family: 'Segoe UI';
+                font-size: 14px;
+            }
+            #titleBar QPushButton {
+                border: none;
+                color: #263238;
+                background: transparent;
+            }
+            #titleBar QPushButton:hover {
+                background-color: #f3f4f6;
+                border-radius: 4px;
+            }
+        """
+        self.setStyleSheet(self.styleSheet() + extra_style)
+
+    def set_fonts(self):
+        # Tenta carregar fontes personalizadas ou usa fallback
+        font_id = QFontDatabase.addApplicationFont(":/fonts/segoeui.ttf")
+        if font_id != -1:
+            font_family = QFontDatabase.applicationFontFamilies(font_id)[0]
+            app_font = QFont(font_family, 10)
+        else:
+            app_font = QFont('Segoe UI', 10)
+        
+        QApplication.setFont(app_font)
+
+    def toggle_maximize_restore(self):
+        """Alterna entre maximizar e restaurar a janela."""
+        if self.isMaximized():
+            self.showNormal()
+            try:
+                self.btn_maximize.setText("▢")
+            except Exception:
+                pass
+        else:
+            self.showMaximized()
+            try:
+                self.btn_maximize.setText("")
+            except Exception:
+                pass
+
+    def logout(self):
+        """Fecha o dashboard do admin e volta para a tela de login."""
+        try:
+            login_window = LoginWindow()
+            # Guarda referência no QApplication para evitar coleta de lixo
+            app = QApplication.instance()
+            if app:
+                setattr(app, "_login_window", login_window)
+            login_window.showFullScreen()
+            login_window.raise_()
+            login_window.activateWindow()
+        finally:
+            self.close()
+
+
+# ============================================================================
+# JANELA DE LOGIN (mantida como estava)
+# ============================================================================
+class LoginWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle('Login - Kamba Farma')
+        # Tamanho inicial, permitir redimensionamento/maximização
+        self.resize(1000, 700)
+        self.setMinimumSize(800, 600)
+
+        # Remover bordas da janela para usar barra de título customizada
+        self.setWindowFlag(Qt.FramelessWindowHint)
+        
+        # Widget central com barra de título customizada
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+
+        outer_layout = QVBoxLayout(central_widget)
+        outer_layout.setContentsMargins(0, 0, 0, 0)
+        outer_layout.setSpacing(0)
+
+        # Barra de título customizada (botões minim/max/fechar)
+        title_bar = QWidget()
+        title_bar.setObjectName("titleBar")
+        title_layout = QHBoxLayout(title_bar)
+        title_layout.setContentsMargins(8, 6, 8, 6)
+        title_layout.setSpacing(6)
+        title_layout.addStretch()
+
+        self.btn_minimize = QPushButton("—")
+        self.btn_maximize = QPushButton("▢")
+        self.btn_close = QPushButton("")
+
+        for b in (self.btn_minimize, self.btn_maximize, self.btn_close):
+            b.setFixedSize(36, 26)
+            b.setCursor(Qt.PointingHandCursor)
+            b.setFlat(True)
+            title_layout.addWidget(b)
+
+        self.btn_minimize.clicked.connect(self.showMinimized)
+        self.btn_maximize.clicked.connect(self.toggle_maximize_restore)
+        self.btn_close.clicked.connect(self.close)
+
+        outer_layout.addWidget(title_bar)
+
+        # Área de conteúdo
+        content_widget = QWidget()
+        main_layout = QHBoxLayout(content_widget)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
+        outer_layout.addWidget(content_widget, 1)
+        
+        # Painel esquerdo (imagem/decoração)
+        left_panel = QWidget()
+        left_panel.setObjectName("leftPanel")
+        left_layout = QVBoxLayout(left_panel)
+        left_layout.setContentsMargins(40, 40, 40, 40)
+        
+        # Logo/Título no painel esquerdo
+        logo_label = QLabel("KAMBA FARMA")
+        logo_label.setObjectName("logoLabel")
+        logo_label.setAlignment(Qt.AlignCenter)
+        left_layout.addWidget(logo_label)
+        
+        # Imagem decorativa (placeholder)
+        image_label = QLabel()
+        image_label.setFixedSize(500, 400)
+        image_label.setAlignment(Qt.AlignCenter)
+        image_label.setStyleSheet(f"""
+            background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                stop:0 {TEAL_PRIMARY}, stop:1 {TEAL_LIGHT});
+            border-radius: 20px;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+        """)
+        # Tenta carregar logo.gif na mesma pasta do arquivo (mesma lógica do w.py)
+        gif_path = Path(__file__).resolve().parent / "logo.gif"
+        if os.path.exists(str(gif_path)):
+            try:
+                movie = QMovie(str(gif_path))
+                movie.setScaledSize(image_label.size())
+                image_label.setMovie(movie)
+                movie.start()
+            except Exception:
+                image_label.setText("Sistema Farmacêutico")
+        else:
+            image_label.setText("Sistema Farmacêutico")
+
+        left_layout.addWidget(image_label)
+        
+        # Espaçador
+        left_layout.addStretch()
+        
+        # Texto de rodapé no painel esquerdo
+        footer_label = QLabel("© Kamba Farma - Sistema Farmacêutico")
+        footer_label.setObjectName("footerLabel")
+        footer_label.setAlignment(Qt.AlignCenter)
+        left_layout.addWidget(footer_label)
+        
+        # Painel direito (formulário de login)
+        right_panel = QFrame()
+        right_panel.setObjectName("rightPanel")
+        right_panel.setMinimumWidth(500)
+        
+        right_layout = QVBoxLayout(right_panel)
+        right_layout.setContentsMargins(60, 60, 60, 60)
+        right_layout.setSpacing(30)
+        
+        # Cabeçalho do formulário
+        header_widget = QWidget()
+        header_layout = QVBoxLayout(header_widget)
+        header_layout.setContentsMargins(0, 0, 0, 0)
+        header_layout.setSpacing(15)
+        
+        welcome_label = QLabel("Bem-vindo de volta")
+        welcome_label.setObjectName("welcomeLabel")
+        welcome_label.setAlignment(Qt.AlignCenter)
+        
+        self.subtitle_label = QLabel("Faça login para acessar o sistema")
+        self.subtitle_label.setObjectName("subtitleLabel")
+        self.subtitle_label.setAlignment(Qt.AlignCenter)
+        
+        # Botões de seleção de perfil (Sou Usuário / Sou Admin)
+        role_widget = QWidget()
+        role_layout = QHBoxLayout(role_widget)
+        role_layout.setContentsMargins(0, 0, 0, 0)
+        role_layout.setSpacing(10)
+        
+        self.btn_role_user = QPushButton("Sou Usuário")
+        self.btn_role_user.setObjectName("roleButtonUser")
+        self.btn_role_user.setCheckable(True)
+        self.btn_role_user.setCursor(Qt.PointingHandCursor)
+        self.btn_role_user.clicked.connect(lambda: self.set_role_selection('user'))
+        
+        self.btn_role_admin = QPushButton("Sou Admin")
+        self.btn_role_admin.setObjectName("roleButtonAdmin")
+        self.btn_role_admin.setCheckable(True)
+        self.btn_role_admin.setCursor(Qt.PointingHandCursor)
+        self.btn_role_admin.clicked.connect(lambda: self.set_role_selection('admin'))
+        
+        role_layout.addStretch()
+        role_layout.addWidget(self.btn_role_user)
+        role_layout.addWidget(self.btn_role_admin)
+        role_layout.addStretch()
+        
+        header_layout.addStretch()
+        header_layout.addWidget(welcome_label)
+        header_layout.addWidget(self.subtitle_label)
+        header_layout.addWidget(role_widget)
+        header_layout.addStretch()
+        
+        # Formulário
+        form_widget = QWidget()
+        form_layout = QVBoxLayout(form_widget)
+        form_layout.setContentsMargins(0, 0, 0, 0)
+        form_layout.setSpacing(25)
+        
+        # Campo de usuário
+        user_widget = QWidget()
+        user_layout = QVBoxLayout(user_widget)
+        user_layout.setContentsMargins(0, 0, 0, 0)
+        user_layout.setSpacing(8)
+        
+        user_label = QLabel("Nome de utilizador")
+        user_label.setObjectName("inputLabel")
+        
+        self.input_username = QLineEdit()
+        self.input_username.setObjectName("usernameInput")
+        self.input_username.setPlaceholderText("Digite seu nome de usuário")
+        self.input_username.setMinimumHeight(50)
+        
+        user_layout.addWidget(user_label)
+        user_layout.addWidget(self.input_username)
+        
+        # Campo de senha
+        password_widget = QWidget()
+        password_layout = QVBoxLayout(password_widget)
+        password_layout.setContentsMargins(0, 0, 0, 0)
+        password_layout.setSpacing(8)
+        
+        password_label = QLabel("Senha")
+        password_label.setObjectName("inputLabel")
+        
+        self.input_password = QLineEdit()
+        self.input_password.setObjectName("passwordInput")
+        self.input_password.setPlaceholderText("Digite sua senha")
+        self.input_password.setEchoMode(QLineEdit.Password)
+        self.input_password.setMinimumHeight(50)
+        
+        password_layout.addWidget(password_label)
+        password_layout.addWidget(self.input_password)
+        
+        # Botões
+        buttons_widget = QWidget()
+        buttons_layout = QVBoxLayout(buttons_widget)
+        buttons_layout.setContentsMargins(0, 0, 0, 0)
+        buttons_layout.setSpacing(15)
+        
+        self.btn_login = QPushButton("Entrar no Sistema")
+        self.btn_login.setObjectName("loginButton")
+        self.btn_login.setCursor(Qt.PointingHandCursor)
+        self.btn_login.setMinimumHeight(55)
+        self.btn_login.clicked.connect(self.handle_login)
+        
+        self.btn_forgot = QPushButton("Esqueceu a senha?")
+        self.btn_forgot.setObjectName("forgotButton")
+        self.btn_forgot.setCursor(Qt.PointingHandCursor)
+        self.btn_forgot.setMinimumHeight(40)
+        self.btn_forgot.clicked.connect(self.handle_forgot)
+        
+        buttons_layout.addWidget(self.btn_login)
+        buttons_layout.addWidget(self.btn_forgot)
+        
+        # Adicionar widgets ao formulário
+        form_layout.addWidget(user_widget)
+        form_layout.addWidget(password_widget)
+        form_layout.addWidget(buttons_widget)
+        
+        # Adicionar tudo ao layout direito
+        right_layout.addWidget(header_widget)
+        right_layout.addWidget(form_widget)
+        right_layout.addStretch()
+        
+        # Adicionar painéis ao layout principal (conteúdo)
+        main_layout.addWidget(left_panel)
+        main_layout.addWidget(right_panel)
+        
+        # Aplicar estilo
+        self.apply_stylesheet()
+        
+        # Conectar tecla Enter ao login
+        self.input_password.returnPressed.connect(self.handle_login)
+        self.input_username.returnPressed.connect(self.handle_login)
+        
+        # Focar no campo de usuário
+        QTimer.singleShot(100, self.input_username.setFocus)
+        # Seleção de perfil padrão
+        try:
+            self.set_role_selection('user')
+        except Exception:
+            pass
+        # indica se o login foi validado contra o banco de dados
+        self._db_authenticated = False
+
+    def set_role_selection(self, role: str):
+        """Define o perfil selecionado ('user' ou 'admin') e atualiza a UI."""
+        self.selected_role = role
+        if role == 'admin':
+            self.btn_role_admin.setChecked(True)
+            self.btn_role_user.setChecked(False)
+            try:
+                # Não preencher automaticamente o campo de usuário
+                self.input_username.clear()
+            except Exception:
+                pass
+            try:
+                self.subtitle_label.setText("Entrando como Admin — insira sua senha")
+            except Exception:
+                pass
+        else:
+            self.btn_role_user.setChecked(True)
+            self.btn_role_admin.setChecked(False)
+            try:
+                # Não preencher automaticamente o campo de usuário
+                self.input_username.clear()
+            except Exception:
+                pass
+            try:
+                self.subtitle_label.setText("Entrando como Usuário — insira sua senha")
+            except Exception:
+                pass
+
+
+    def apply_stylesheet(self):
+        style = f"""
+            /* Janela principal */
+            QMainWindow {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+                    stop:0 {AZUL_CARRREGADO}, stop:1 #0f766e);
+            }}
+            
+            /* Painel esquerdo */
+            #leftPanel {{
+                background-color: {BRANCO};
+                border-radius: 0px;
+            }}
+            
+            #logoLabel {{
+                font-family: 'Segoe UI', Arial, sans-serif;
+                font-size: 42px;
+                font-weight: 800;
+                color: {VERDE_PRINCIPAL};
+                margin-bottom: 40px;
+                line-height: 1.2;
+            }}
+            
+            #footerLabel {{
+                font-family: 'Segoe UI', Arial, sans-serif;
+                font-size: 12px;
+                color: {CINZA_ESCURO};
+                opacity: 0.7;
+            }}
+            
+            /* Painel direito */
+            #rightPanel {{
+                background-color: {BRANCO};
+                border-radius: 20px 0px 0px 20px;
+            }}
+            
+            /* Labels do cabeçalho */
+            #welcomeLabel {{
+                font-family: 'Segoe UI', Arial, sans-serif;
+                font-size: 32px;
+                font-weight: 700;
+                color: {CINZA_ESCURO};
+            }}
+            
+            #subtitleLabel {{
+                font-family: 'Segoe UI', Arial, sans-serif;
+                font-size: 16px;
+                color: #6b7280;
+                font-weight: 400;
+            }}
+            
+            /* Labels dos campos */
+            #inputLabel {{
+                font-family: 'Segoe UI', Arial, sans-serif;
+                font-size: 14px;
+                font-weight: 600;
+                color: {CINZA_ESCURO};
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }}
+            
+            /* Campos de entrada */
+            QLineEdit {{
+                font-family: 'Segoe UI', Arial, sans-serif;
+                font-size: 16px;
+                padding: 0px 20px;
+                border: 2px solid #e5e7eb;
+                border-radius: 12px;
+                background-color: {CINZA_CLARO};
+                color: {CINZA_ESCURO};
+                selection-background-color: {VERDE_PRINCIPAL};
+            }}
+            
+            QLineEdit:focus {{
+                border: 2px solid {VERDE_PRINCIPAL};
+                background-color: {BRANCO};
+            }}
+            
+            QLineEdit#usernameInput, QLineEdit#passwordInput {{
+                font-size: 15px;
+            }}
+            
+            /* Botão de login */
+            #loginButton {{
+                font-family: 'Segoe UI', Arial, sans-serif;
+                font-size: 16px;
+                font-weight: 600;
+                color: white;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 {VERDE_PRINCIPAL}, stop:1 #059669);
+                border: none;
+                border-radius: 12px;
+                padding: 10px;
+                margin-top: 10px;
+            }}
+            
+            #loginButton:hover {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #0da271, stop:1 #047857);
+            }}
+            
+            #loginButton:pressed {{
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #059669, stop:1 #065f46);
+            }}
+            
+            /* Botão de esqueci senha */
+            #forgotButton {{
+                font-family: 'Segoe UI', Arial, sans-serif;
+                font-size: 14px;
+                color: {AZUL_CARRREGADO};
+                background: transparent;
+                border: none;
+                border-radius: 8px;
+                padding: 8px;
+                font-weight: 500;
+            }}
+            
+            #forgotButton:hover {{
+                background-color: {AZUL_BEBE}40;
+                color: {AZUL_CARRREGADO};
+            }}
+            
+            #forgotButton:pressed {{
+                background-color: {AZUL_BEBE}60;
+            }}
+
+            /* Botões de seleção de perfil */
+            QPushButton#roleButtonUser, QPushButton#roleButtonAdmin {{
+                font-family: 'Segoe UI', Arial, sans-serif;
+                font-size: 14px;
+                color: {CINZA_ESCURO};
+                background: transparent;
+                border: 1px solid #e5e7eb;
+                border-radius: 8px;
+                padding: 8px 14px;
+                min-width: 120px;
+                font-weight: 600;
+            }}
+
+            QPushButton#roleButtonUser:checked, QPushButton#roleButtonAdmin:checked {{
+                color: white;
+                background: qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 {VERDE_PRINCIPAL}, stop:1 #059669);
+                border: none;
+            }}
+
+            /* Placeholder text */
+            QLineEdit::placeholder {{
+                color: #9ca3af;
+                font-weight: 400;
+            }}
+        """
+        self.setStyleSheet(style)
+        
+        # Ajustes de estilo para a barra de título e botões
+        extra_style = """
+            #titleBar {
+                background: transparent;
+            }
+            #titleBar QPushButton {
+                border: none;
+                color: #374151;
+                font-weight: 700;
+                background: transparent;
+            }
+            #titleBar QPushButton:hover {
+                background-color: #f3f4f6;
+                border-radius: 4px;
+            }
+        """
+        self.setStyleSheet(self.styleSheet() + extra_style)
+
+    def toggle_maximize_restore(self):
+        """Alterna entre maximizar e restaurar a janela."""
+        if self.isMaximized():
+            self.showNormal()
+            try:
+                self.btn_maximize.setText("▢")
+            except Exception:
+                pass
+        else:
+            self.showMaximized()
+            try:
+                self.btn_maximize.setText("")
+            except Exception:
+                pass
+
+    def handle_forgot(self):
+        msg = QMessageBox(self)
+        msg.setWindowTitle("Recuperação de Senha")
+        msg.setText("Solicitação enviada com sucesso!")
+        msg.setInformativeText("Um link de recuperação foi enviado para o seu e-mail cadastrado.")
+        msg.setIcon(QMessageBox.Information)
+        msg.setStyleSheet(f"""
+            QMessageBox {{
+                background-color: {BRANCO};
+                font-family: 'Segoe UI', Arial;
+            }}
+            QLabel {{
+                color: {CINZA_ESCURO};
+                font-size: 14px;
+            }}
+            QPushButton {{
+                background-color: {VERDE_PRINCIPAL};
+                color: white;
+                border-radius: 8px;
+                padding: 8px 16px;
+                font-weight: 600;
+                min-width: 80px;
+            }}
+            QPushButton:hover {{
+                background-color: #0da271;
+            }}
+        """)
+        msg.exec_()
+
+    def handle_login(self):
+        # Adicionar efeito visual durante o login
+        original_text = self.btn_login.text()
+        self.btn_login.setText("Verificando...")
+        self.btn_login.setEnabled(False)
+        
+        username = self.input_username.text().strip()
+        password = self.input_password.text()
+        
+        if not username or not password:
+            QMessageBox.warning(self, 'Campos obrigatórios', 
+                'Por favor, preencha todos os campos.')
+            self.btn_login.setText(original_text)
+            self.btn_login.setEnabled(True)
+            return
+        
+        # Primeiro: autenticação local para desenvolvimento
+        local_users = {
+            'admin': {'password': 'admin', 'role': 'admin', 'nome': 'Administrador'},
+            'user': {'password': 'user', 'role': 'user', 'nome': 'Usuário Padrão'},
+            'func': {'password': 'func', 'role': 'user', 'nome': 'Funcionário'},
+        }
+        entry = local_users.get(username)
+        user = None
+        if entry and password == entry['password']:
+            user = {
+                'username': username,
+                'nome': entry['nome'],
+                'role': entry['role'],
+                'cargo': 'Administrador' if entry['role'] == 'admin' else 'Usuário'
+            }
+            self._db_authenticated = False
+            QTimer.singleShot(500, lambda: self.finalize_login(user))
+            return
+        
+        # Se não for usuário local, tentar autenticar contra a base de dados
+        try:
+            # Resolver caminho do DB a partir de config, fallback para busca
+            try:
+                from config.settings import DB_FILE
+                db_path = DB_FILE
+            except Exception:
+                # subir até encontrar pasta `database`
+                file_path = Path(__file__).resolve()
+                _ROOT = file_path
+                for _ in range(8):
+                    if (_ROOT / 'database').exists():
+                        break
+                    _ROOT = _ROOT.parent
+                db_path = _ROOT / 'database' / 'kamba_farma.db'
+
+            logger.debug("Login attempt username=%r db_path=%s", username, db_path)
+
+            # Criar banco de dados de exemplo se não existir (compatibilidade)
+            if not db_path.exists():
+                self.create_sample_database(db_path)
+
+            conn = sqlite3.connect(str(db_path))
+            conn.row_factory = sqlite3.Row
+            cur = conn.cursor()
+
+            # Buscar usuário (case-insensitive)
+            cur.execute("SELECT id, nome, senha_hash, perfil, ativo FROM usuarios WHERE nome = ? COLLATE NOCASE LIMIT 1", (username,))
+            row = cur.fetchone()
+
+            # Fallback: permitir login usando o valor do campo `perfil` (ex: 'admin')
+            if not row:
+                cur.execute("SELECT id, nome, senha_hash, perfil, ativo FROM usuarios WHERE perfil = ? COLLATE NOCASE LIMIT 1", (username,))
+                row = cur.fetchone()
+
+            conn.close()
+
+            if not row:
+                # usuário não encontrado
+                self.shake_login_button()
+                QMessageBox.warning(self, 'Falha no login', 'Credenciais inválidas. Verifique usuário/senha.')
+                self.btn_login.setText(original_text)
+                self.btn_login.setEnabled(True)
+                return
+
+            if row['ativo'] == 0:
+                QMessageBox.warning(self, 'Conta inativa', 'Este usuário está inativo. Contate o administrador.')
+                self.btn_login.setText(original_text)
+                self.btn_login.setEnabled(True)
+                return
+
+            # verificar hash
+            stored_hash = row['senha_hash'] if row['senha_hash'] is not None else ''
+            try:
+                given_hash = hash_password(password)
+            except Exception:
+                given_hash = hashlib.sha256(password.encode('utf-8')).hexdigest()
+            logger.debug("Comparing hashes for %r: given=%s stored=%s", username, given_hash, stored_hash)
+            if given_hash != stored_hash:
+                logger.debug("Hash mismatch for user %r", username)
+                self.shake_login_button()
+                QMessageBox.warning(self, 'Falha no login', 'Credenciais inválidas. Verifique usuário/senha.')
+                self.btn_login.setText(original_text)
+                self.btn_login.setEnabled(True)
+                return
+
+            role_val = row['perfil'] if row['perfil'] is not None else 'user'
+            user = {
+                'username': row['nome'],
+                'nome': row['nome'],
+                'role': role_val,
+                'id': row['id'],
+                'cargo': 'Administrador' if role_val == 'admin' else 'Usuário'
+            }
+            self._db_authenticated = True
+            QTimer.singleShot(500, lambda: self.finalize_login(user))
+
+        except Exception as e:
+            QMessageBox.critical(self, 'Erro', f'Erro ao acessar o banco de dados: {e}')
+            self.btn_login.setText(original_text)
+            self.btn_login.setEnabled(True)
+
+    def finalize_login(self, user):
+        """Finaliza o processo de login após validação"""
+        self.btn_login.setText("Login bem-sucedido!")
+        self.authenticated_user = user
+        
+        # Pequeno delay para mostrar a mensagem de sucesso
+        QTimer.singleShot(800, self.open_main_window)
+
+    def create_sample_database(self, db_path):
+        """Cria um banco de dados de exemplo com dados iniciais"""
+        conn = sqlite3.connect(str(db_path))
+        cur = conn.cursor()
+        
+        # Criar tabela de usuários
+        cur.execute("""
+            CREATE TABLE usuarios (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nome TEXT NOT NULL,
+                senha_hash TEXT NOT NULL,
+                perfil TEXT,
+                ativo INTEGER DEFAULT 1
+            )
+        """)
+        
+        # Inserir usuários de exemplo
+        sample_users = [
+            ('admin', hash_password('admin123'), 'admin', 1),
+            ('joao', hash_password('joao123'), 'user', 1),
+            ('maria', hash_password('maria123'), 'user', 1),
+        ]
+        
+        for nome, senha, perfil, ativo in sample_users:
+            cur.execute(
+                "INSERT INTO usuarios (nome, senha_hash, perfil, ativo) VALUES (?, ?, ?, ?)",
+                (nome, senha, perfil, ativo)
+            )
+        
+        conn.commit()
+        conn.close()
+
+    def shake_login_button(self):
+        """Animação de shake para feedback de erro"""
+        import random
+        original_pos = self.btn_login.pos()
+        for i in range(0, 6):
+            x = original_pos.x() + random.randint(-5, 5)
+            y = original_pos.y()
+            self.btn_login.move(x, y)
+            QApplication.processEvents()
+            QTimer.singleShot(50, lambda: None)
+        self.btn_login.move(original_pos)
+
+    def open_main_window(self):
+        """Abre a janela apropriada após login"""
+        role = self.authenticated_user.get('role')
+        
+        if role == 'admin':
+            self.main = AdminDashboard(current_user=self.authenticated_user)
+        else:
+            self.main = UserDashboard(current_user=self.authenticated_user)
+        
+        self.main.showFullScreen()
+        self.close()
+
+    def keyPressEvent(self, event):
+        """Capturar teclas especiais"""
+        if event.key() == Qt.Key_Escape:
+            self.close()
+        super().keyPressEvent(event)
+
+
+# ============================================================================
+# FUNÇÃO PRINCIPAL
+# ============================================================================
+def main():
+    app = QApplication(sys.argv)
+    app.setStyle('Fusion')
+    
+    # Configurar paleta de cores global
+    palette = app.palette()
+    palette.setColor(palette.Window, QColor(BRANCO))
+    palette.setColor(palette.WindowText, QColor(CINZA_ESCURO))
+    palette.setColor(palette.Base, QColor(CINZA_CLARO))
+    palette.setColor(palette.AlternateBase, QColor(AZUL_BEBE))
+    palette.setColor(palette.ToolTipBase, QColor(VERDE_PRINCIPAL))
+    palette.setColor(palette.ToolTipText, QColor(BRANCO))
+    palette.setColor(palette.Text, QColor(CINZA_ESCURO))
+    palette.setColor(palette.Button, QColor(VERDE_PRINCIPAL))
+    palette.setColor(palette.ButtonText, QColor(BRANCO))
+    palette.setColor(palette.BrightText, QColor(BRANCO))
+    palette.setColor(palette.Link, QColor(AZUL_CARRREGADO))
+    palette.setColor(palette.Highlight, QColor(VERDE_PRINCIPAL))
+    palette.setColor(palette.HighlightedText, QColor(BRANCO))
+    app.setPalette(palette)
+    
+    # Criar e exibir janela de login
+    login_window = LoginWindow()
+    login_window.showFullScreen()
+    
+    sys.exit(app.exec_())
+
+
+if __name__ == '__main__':
+    main()

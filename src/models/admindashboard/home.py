@@ -42,14 +42,13 @@ def _get_conn():
     conn.execute("PRAGMA foreign_keys = ON;")
     return conn
 
-# Paleta de cores
-TEAL_PRIMARY = "#009688"
-TEAL_LIGHT = "#4DB6AC"
-TEAL_DARK = "#00796B"
+from colors import *
+# Local aliases
+TEAL_PRIMARY = PRIMARY_COLOR
+TEAL_LIGHT = "#E6F9FB"
+TEAL_DARK = PRIMARY_DARK
 WHITE_NEUTRAL = "#FAFAFA"
-DARK_GRAY = "#263238"
 ORANGE_ALERT = "#FF9800"
-WHITE = "#FFFFFF"
 GRAY_LIGHT = "#ECEFF1"
 GRAY_MEDIUM = "#B0BEC5"
 
@@ -283,9 +282,9 @@ class ResponsiveWelcomeWidget(QFrame):
         
         # Pequenos indicadores
         indicators = [
-            ("📊", "15", "Vendas"),
-            ("👥", "8", "Online"),
-            ("💬", "3", "Msgs")
+            ("", "15", "Vendas"),
+            ("", "8", "Online"),
+            ("", "3", "Msgs")
         ]
         
         for icon, value, label_text in indicators:
@@ -619,19 +618,19 @@ class HomePage(QWidget):
         # Alertas de exemplo
         alerts = [
             {
-                'icon': '⚠️',
+                'icon': '',
                 'text': '5 produtos com validade próxima (30 dias)',
                 'type': 'warning',
                 'color': ORANGE_ALERT
             },
             {
-                'icon': '📦',
+                'icon': '',
                 'text': 'Stock baixo para Paracetamol (restam 15 unidades)',
                 'type': 'info',
                 'color': TEAL_PRIMARY
             },
             {
-                'icon': '👥',
+                'icon': '',
                 'text': '3 novos clientes registados esta semana',
                 'type': 'success',
                 'color': "#4CAF50"
@@ -730,22 +729,22 @@ class HomePage(QWidget):
                 else:
                     threshold = r['stock_minimo'] + 5
                 if r['stock'] <= threshold:
-                    low_stock_alerts.append({'icon': '📦', 'text': f"Stock baixo para {r['nome_comercial']} (restam {r['stock']} unidades)", 'type': 'info', 'color': TEAL_PRIMARY})
+                    low_stock_alerts.append({'icon': '', 'text': f"Stock baixo para {r['nome_comercial']} (restam {r['stock']} unidades)", 'type': 'info', 'color': TEAL_PRIMARY})
 
             cur.execute("SELECT p.nome_comercial AS produto, l.numero_lote, l.validade FROM lotes l LEFT JOIN produtos p ON p.id = l.produto_id WHERE DATE(l.validade) <= DATE('now','+30 days') ORDER BY DATE(l.validade) ASC LIMIT 5")
             soon_expire = cur.fetchall()
             expire_alerts = []
             for r in soon_expire:
                 validade = r['validade']
-                expire_alerts.append({'icon': '⚠️', 'text': f"Lote {r['numero_lote']} de {r['produto']} com validade próxima ({validade})", 'type': 'warning', 'color': ORANGE_ALERT})
+                expire_alerts.append({'icon': '', 'text': f"Lote {r['numero_lote']} de {r['produto']} com validade próxima ({validade})", 'type': 'warning', 'color': ORANGE_ALERT})
 
             conn.close()
 
             cards_data = [
-                {"title": "Total de Vendas", "value": f"Kz {int(total_vendas):,}", "icon": "💰", "trend": None, "color": TEAL_PRIMARY},
-                {"title": "Produtos em Stock", "value": f"{int(produtos_stock):,}", "icon": "📦", "trend": None, "color": TEAL_LIGHT},
-                {"title": "Funcionários", "value": f"{int(qtd_usuarios)}", "icon": "👥", "trend": None, "color": "#2196F3"},
-                {"title": "Vendas Hoje", "value": f"Kz {int(vendas_hoje):,}", "icon": "📊", "trend": None, "color": ORANGE_ALERT},
+                {"title": "Total de Vendas", "value": f"Kz {int(total_vendas):,}", "icon": "", "trend": None, "color": TEAL_PRIMARY},
+                {"title": "Produtos em Stock", "value": f"{int(produtos_stock):,}", "icon": "", "trend": None, "color": TEAL_LIGHT},
+                {"title": "Funcionários", "value": f"{int(qtd_usuarios)}", "icon": "", "trend": None, "color": "#2196F3"},
+                {"title": "Vendas Hoje", "value": f"Kz {int(vendas_hoje):,}", "icon": "", "trend": None, "color": ORANGE_ALERT},
             ]
 
             # Limpar grid existente
@@ -794,7 +793,7 @@ class HomePage(QWidget):
             # if no alerts, add a sample
             if not alerts:
                 alerts = [
-                    {'icon': '✅', 'text': 'Nenhum alerta crítico no momento', 'type': 'info', 'color': TEAL_PRIMARY}
+                    {'icon': '', 'text': 'Nenhum alerta crítico no momento', 'type': 'info', 'color': TEAL_PRIMARY}
                 ]
 
             # montar widget de alertas com os alertas reais
@@ -811,10 +810,10 @@ class HomePage(QWidget):
             print('Erro ao carregar dados do DB para dashboard:', e)
             # previous example behaviour
             cards_data = [
-                {"title": "Total de Vendas", "value": "Kz 245.850", "icon": "💰", "trend": 12.5, "color": TEAL_PRIMARY},
-                {"title": "Produtos em Stock", "value": "1.234", "icon": "📦", "trend": -2.3, "color": TEAL_LIGHT},
-                {"title": "Funcionários", "value": "48", "icon": "👥", "trend": 5.0, "color": "#2196F3"},
-                {"title": "Vendas Hoje", "value": "Kz 12.450", "icon": "📊", "trend": 8.7, "color": ORANGE_ALERT},
+                {"title": "Total de Vendas", "value": "Kz 245.850", "icon": "", "trend": 12.5, "color": TEAL_PRIMARY},
+                {"title": "Produtos em Stock", "value": "1.234", "icon": "", "trend": -2.3, "color": TEAL_LIGHT},
+                {"title": "Funcionários", "value": "48", "icon": "", "trend": 5.0, "color": "#2196F3"},
+                {"title": "Vendas Hoje", "value": "Kz 12.450", "icon": "", "trend": 8.7, "color": ORANGE_ALERT},
             ]
             for i in reversed(range(self.cards_grid.count())):
                 widget = self.cards_grid.itemAt(i).widget()

@@ -25,24 +25,24 @@ from src.config.paths import DB_DIR
 from database.db import get_db_path, connect
 from src.core.auth import hash_password
 
-# Paleta de cores - TEMA CLARO MODERNO
-MILK_BG = "#FFFBF5"  # Fundo leitoso
-CARD_BG = "#FFFFFF"  # Branco puro para cards
-LIGHT_BORDER = "#E8E8E8"  # Borda cinza claro
-ACCENT_BORDER = "#00BFA5"  # Borda de destaque teal
-TEXT_PRIMARY = "#2C3E50"  # Azul escuro para texto principal
-TEXT_SECONDARY = "#7F8C8D"  # Cinza para texto secundário
-TEXT_LIGHT = "#95A5A6"  # Cinza mais claro
-TEAL_PRIMARY = "#00BFA5"  # Teal principal
-TEAL_LIGHT = "#E0F7FA"  # Teal muito claro para fundo
-TEAL_HOVER = "#B2EBF2"  # Teal para hover
-GREEN_SUCCESS = "#2ECC71"  # Verde moderno
-RED_ERROR = "#E74C3C"  # Vermelho moderno
-PURPLE = "#9B59B6"  # Roxo moderno
-BLUE_INFO = "#3498DB"  # Azul moderno
-ORANGE_ALERT = "#F39C12"  # Laranja moderno
-SHADOW_COLOR = "#00000010"  # Sombra sutil
-
+from colors import *
+# Local aliases and legacy helpers
+MILK_BG = BACKGROUND_GRAY
+CARD_BG = WHITE
+LIGHT_BORDER = "#E8E8E8"
+ACCENT_BORDER = PRIMARY_DARK
+TEAL_PRIMARY = PRIMARY_COLOR
+TEAL_LIGHT = "#E6F9FB"
+TEAL_HOVER = "#CFF8FA"
+GREEN_SUCCESS = "#2ECC71"
+RED_ERROR = ACCENT_RED
+PURPLE = "#9B59B6"
+BLUE_INFO = "#3498DB"
+ORANGE_ALERT = "#F39C12"
+SHADOW_COLOR = SHADOW_COLOR
+TEXT_PRIMARY = TEXT_PRIMARY
+TEXT_LIGHT = "#7F8C8D"
+TEXT_SECONDARY = "#34495E"
 
 class RoundedFrame(QFrame):
     """Frame com cantos arredondados."""
@@ -193,7 +193,7 @@ class PhotoFrame(QLabel):
                 border: 2px dashed {TEAL_PRIMARY}80;
             }}
         """)
-        self.setText("➕\nClique para\nadicionar foto")
+        self.setText("\nClique para\nadicionar foto")
         
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
@@ -340,7 +340,7 @@ class AdicionarUsuarioView(QWidget):
         layout.setContentsMargins(25, 25, 25, 25)
         layout.setSpacing(15)
         
-        title = QLabel("📷 Foto do Perfil")
+        title = QLabel(" Foto do Perfil")
         title.setStyleSheet(f"""
             font-size: 18px;
             font-weight: bold;
@@ -392,7 +392,7 @@ class AdicionarUsuarioView(QWidget):
         grid.setColumnStretch(1, 1)
         
         # Coluna 1 - Dados Pessoais
-        col1_title = QLabel("👤 Dados Pessoais")
+        col1_title = QLabel(" Dados Pessoais")
         col1_title.setStyleSheet(f"""
             font-size: 16px;
             font-weight: bold;
@@ -424,7 +424,7 @@ class AdicionarUsuarioView(QWidget):
         grid.addWidget(self.input_area_atuacao, 6, 0)
         
         # Coluna 2 - Contato e Segurança
-        col2_title = QLabel("🔐 Contato e Segurança")
+        col2_title = QLabel(" Contato e Segurança")
         col2_title.setStyleSheet(f"""
             font-size: 16px;
             font-weight: bold;
@@ -491,7 +491,7 @@ class AdicionarUsuarioView(QWidget):
         layout.setContentsMargins(25, 25, 25, 25)
         
         # Botão de limpar
-        btn_limpar = ModernButton("Limpar", "🗑️", TEXT_LIGHT)
+        btn_limpar = ModernButton("Limpar", "", TEXT_LIGHT)
         btn_limpar.clicked.connect(self._on_cancelar)
         btn_limpar.setMinimumWidth(150)
         
@@ -499,7 +499,7 @@ class AdicionarUsuarioView(QWidget):
         layout.addStretch()
         
         # Botão de salvar
-        btn_salvar = ModernButton("Salvar Usuário", "💾", GREEN_SUCCESS)
+        btn_salvar = ModernButton("Salvar Usuário", "", GREEN_SUCCESS)
         btn_salvar.clicked.connect(self._on_salvar)
         btn_salvar.setMinimumWidth(200)
         
@@ -624,13 +624,13 @@ class AdicionarUsuarioView(QWidget):
                 pass
 
             # Feedback visual de sucesso
-            self._show_notification(f"✅ Usuário '{nome}' cadastrado com sucesso!", "success")
+            self._show_notification(f" Usuário '{nome}' cadastrado com sucesso!", "success")
             
             # Limpar formulário
             self._on_cancelar()
             
         except Exception as e:
-            self._show_notification(f"❌ Erro ao salvar usuário: {str(e)}", "error")
+            self._show_notification(f" Erro ao salvar usuário: {str(e)}", "error")
 
     def _on_cancelar(self):
         """Limpa todos os campos do formulário."""
@@ -644,7 +644,7 @@ class AdicionarUsuarioView(QWidget):
         
         # Resetar foto
         self.photo_frame.setPixmap(QPixmap())
-        self.photo_frame.setText("➕\nClique para\nadicionar foto")
+        self.photo_frame.setText("\nClique para\nadicionar foto")
         self.photo_frame.setStyleSheet(f"""
             QLabel {{
                 background-color: {TEAL_LIGHT};

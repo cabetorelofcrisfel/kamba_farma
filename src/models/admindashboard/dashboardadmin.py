@@ -40,31 +40,35 @@ if not logger.handlers:
     logger.addHandler(fh)
 
 # ============================================================================
-# CONSTANTES DE CORES (UNIFICADAS)
+# CONSTANTES DE CORES (PALETA KAMBA)
 # ============================================================================
-AZUL_CARRREGADO = "#1e3a8a"
-AZUL_BEBE = "#93c5fd"
-VERDE_PRINCIPAL = "#10b988"
-CINZA_ESCURO = "#374151"
-CINZA_CLARO = "#f3f4f6"
-BRANCO = "#ffffff"
-
-TEAL_PRIMARY = "#009688"
-TEAL_DARK = "#00796B"
-TEAL_LIGHT = "#4DB6AC"
-WHITE_NEUTRAL = "#FAFAFA"
-DARK_GRAY = "#263238"
-ORANGE_ALERT = "#FF9800"
+# Paleta principal solicitada
+PRIMARY_COLOR = "#28C7D3"
+PRIMARY_DARK = "#0A777F"
+ACCENT_RED = "#E53935"
+BACKGROUND_GRAY = "#F2F2F2"
+TEXT_DARK = "#2E2E2E"
 WHITE = "#FFFFFF"
+DARK_GRAY = "#212121"
+# Backwards-compatible aliases (usadas em várias partes do código)
+TEAL_PRIMARY = PRIMARY_COLOR
+TEAL_DARK = PRIMARY_DARK
+TEAL_LIGHT = "#4DB6AC"  # variante clara para gradientes
+VERDE_PRINCIPAL = PRIMARY_COLOR
+ORANGE_ALERT = ACCENT_RED
+BRANCO = WHITE
+WHITE_NEUTRAL = "#FAFAFA"
+CINZA_ESCURO = TEXT_DARK
+CINZA_CLARO = BACKGROUND_GRAY
 GRAY_LIGHT = "#ECEFF1"
 GRAY_MEDIUM = "#B0BEC5"
 
-# NOVAS CORES DA PALETA ESPECIFICADA
-BACKGROUND_LIGHT = "#F5F7FA"    # fundo principal
-SURFACE_CARD = "#FFFFFF"        # cards, painéis
-TEXT_PRIMARY = "#263238"        # texto principal
-TEXT_SECONDARY = "#607D8B"      # texto secundário
-BORDER_DIVIDER = "#E0E0E0"      # linhas, bordas
+# Cores semânticas adicionais
+BACKGROUND_LIGHT = BACKGROUND_GRAY    # fundo principal
+SURFACE_CARD = WHITE                  # cards, painéis
+TEXT_PRIMARY = TEXT_DARK              # texto principal
+TEXT_SECONDARY = "#607D8B"          # texto secundário
+BORDER_DIVIDER = "#E0E0E0"          # linhas, bordas
 
 # Tentativas de importar implementações modulares (fallback para classes locais)
 # Usamos import absoluto para evitar problemas de contexto durante import
@@ -282,7 +286,7 @@ class HomePage(QWidget):
         cards_layout = QHBoxLayout()
         cards_layout.addWidget(DashboardCard("Total de Produtos", "1,245", color=TEAL_PRIMARY))
         cards_layout.addWidget(DashboardCard("Vendas do Mês", "R$ 89.420", color=VERDE_PRINCIPAL))
-        cards_layout.addWidget(DashboardCard("Clientes Ativos", "342", color=AZUL_CARRREGADO))
+        cards_layout.addWidget(DashboardCard("Clientes Ativos", "342", color=PRIMARY_DARK))
         cards_layout.addWidget(DashboardCard("Pedidos Pendentes", "23", color=ORANGE_ALERT))
         
         layout.addWidget(title)
@@ -408,7 +412,7 @@ class UserVendaPage(QWidget):
         layout.setContentsMargins(30, 30, 30, 30)
         
         # Título
-        title = QLabel("🛒 Ponto de Venda")
+        title = QLabel(" Ponto de Venda")
         title.setStyleSheet(f"""
             font-size: 28px; 
             font-weight: bold; 
@@ -436,7 +440,7 @@ class UserVendaPage(QWidget):
         """)
         nova_venda_layout = QVBoxLayout(nova_venda_card)
         
-        nova_venda_title = QLabel("➕ Nova Venda")
+        nova_venda_title = QLabel(" Nova Venda")
         nova_venda_title.setStyleSheet(f"""
             font-size: 20px;
             font-weight: bold;
@@ -486,7 +490,7 @@ class UserVendaPage(QWidget):
         """)
         vendas_recentes_layout = QVBoxLayout(vendas_recentes_card)
         
-        vendas_recentes_title = QLabel("📋 Vendas Hoje")
+        vendas_recentes_title = QLabel(" Vendas Hoje")
         vendas_recentes_title.setStyleSheet(f"""
             font-size: 20px;
             font-weight: bold;
@@ -524,7 +528,7 @@ class UserVendaPage(QWidget):
         """)
         produtos_populares_layout = QVBoxLayout(produtos_populares_card)
         
-        produtos_populares_title = QLabel("🔥 Produtos Mais Vendidos")
+        produtos_populares_title = QLabel(" Produtos Mais Vendidos")
         produtos_populares_title.setStyleSheet(f"""
             font-size: 20px;
             font-weight: bold;
@@ -573,7 +577,7 @@ class UserCatalogoPage(QWidget):
         header_widget = QWidget()
         header_layout = QHBoxLayout(header_widget)
         
-        title = QLabel("📦 Catálogo de Produtos")
+        title = QLabel(" Catálogo de Produtos")
         title.setStyleSheet(f"""
             font-size: 28px; 
             font-weight: bold; 
@@ -601,7 +605,7 @@ class UserCatalogoPage(QWidget):
             }}
         """)
         
-        search_btn = QPushButton("🔍")
+        search_btn = QPushButton("")
         search_btn.setFixedSize(40, 40)
         search_btn.setStyleSheet(f"""
             QPushButton {{
@@ -764,7 +768,7 @@ class UserDashboard(QMainWindow):
         
         self.btn_minimize = QPushButton('—')
         self.btn_maximize = QPushButton('▢')
-        self.btn_close = QPushButton('✕')
+        self.btn_close = QPushButton('')
         for b in (self.btn_minimize, self.btn_maximize, self.btn_close):
             b.setFixedSize(36, 26)
             b.setCursor(Qt.PointingHandCursor)
@@ -798,7 +802,7 @@ class UserDashboard(QMainWindow):
         header_layout = QVBoxLayout(header)
         header_layout.setContentsMargins(20, 20, 20, 20)
         
-        user_name = QLabel(f"👤 {current_user.get('username', 'Usuário')}" if current_user else "👤 Usuário")
+        user_name = QLabel(f" {current_user.get('username', 'Usuário')}" if current_user else " Usuário")
         user_name.setStyleSheet(f"""
             color: white;
             font-size: 16px;
@@ -825,8 +829,8 @@ class UserDashboard(QMainWindow):
         buttons_layout.setSpacing(5)
         
         menu_items = [
-            ("🛒", "Venda", 0),
-            ("📦", "Catálogo", 1),
+            ("", "Venda", 0),
+            ("", "Catálogo", 1),
         ]
         
         self.menu_buttons = []
@@ -843,7 +847,7 @@ class UserDashboard(QMainWindow):
         buttons_layout.addStretch()
         
         # Botão de logout
-        logout_btn = QPushButton("🚪  Sair")
+        logout_btn = QPushButton("  Sair")
         logout_btn.setCursor(Qt.PointingHandCursor)
         logout_btn.setStyleSheet(f"""
             QPushButton {{
@@ -981,13 +985,13 @@ class UserDashboard(QMainWindow):
 
                 # tentar importar como pacote primeiro
                 try:
-                    import models.admindashboard.produto.catalogo_view as cat_mod
+                    import models.admindashboard.catalogo_view as cat_mod
                     importlib.reload(cat_mod)
                 except ModuleNotFoundError:
                     # fallback: carregar diretamente pelo caminho do arquivo
-                    cat_path = Path(__file__).parent / 'produto' / 'catalogo_view.py'
+                    cat_path = Path(__file__).parent / '.' / 'catalogo_view.py'
                     if cat_path.exists():
-                        spec = importlib.util.spec_from_file_location('models.admindashboard.produto.catalogo_view', str(cat_path))
+                        spec = importlib.util.spec_from_file_location('models.admindashboard.catalogo_view', str(cat_path))
                         cat_mod = importlib.util.module_from_spec(spec)
                         spec.loader.exec_module(cat_mod)
                     else:
@@ -1084,7 +1088,7 @@ class UserDashboard(QMainWindow):
         else:
             self.showMaximized()
             try:
-                self.btn_maximize.setText("❐")
+                self.btn_maximize.setText("")
             except Exception:
                 pass
     
@@ -1127,7 +1131,7 @@ class AdminDashboard(QMainWindow):
 
         self.btn_minimize = QPushButton('—')
         self.btn_maximize = QPushButton('▢')
-        self.btn_close = QPushButton('✕')
+        self.btn_close = QPushButton('')
         for b in (self.btn_minimize, self.btn_maximize, self.btn_close):
             b.setFixedSize(36, 26)
             b.setCursor(Qt.PointingHandCursor)
@@ -1146,23 +1150,42 @@ class AdminDashboard(QMainWindow):
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
 
-        # Side menu com gradiente
+        # Side menu com cor primária
         menu = QWidget()
         menu.setObjectName('menu')
         menu.setFixedWidth(260)
-        menu.setStyleSheet("background: #FFFFFF;")
+        menu.setStyleSheet("background: #28C7D3;")
         menu_layout = QVBoxLayout(menu)
         menu_layout.setContentsMargins(0, 0, 0, 20)
         menu_layout.setSpacing(0)
 
-        # Header com gradiente (tenta carregar logo.gif na mesma pasta do arquivo)
+        # Header apenas com logo.gif
         logo_path = Path(__file__).resolve().parent / 'logo.gif'
-        header = GradientHeader('KAMBA FARMA', gif_path=logo_path)
+        header = QWidget()
+        header.setFixedHeight(120)
+        header_layout = QVBoxLayout(header)
+        header_layout.setContentsMargins(20, 10, 20, 10)
+        header_layout.setAlignment(Qt.AlignCenter)
+        
+        logo_label = QLabel()
+        logo_label.setFixedSize(200, 100)
+        
+        try:
+
+                a="#8B5CF6"
+                logo_label.setText("KAMBA FARMA")
+                logo_label.setStyleSheet(f"color: {a}; font-weight: bold; font-size: 25px;")
+        except Exception:
+            logo_label.setText("KAMBA")
+            logo_label.setStyleSheet(f"color: {TEAL_PRIMARY}; font-weight: bold; font-size: 18px;")
+        
+        logo_label.setAlignment(Qt.AlignCenter)
+        header_layout.addWidget(logo_label)
         menu_layout.addWidget(header)
 
         # Informações do usuário
         user_widget = QWidget()
-        user_widget.setStyleSheet(f"background: {TEAL_DARK};")
+        user_widget.setStyleSheet(f"background: #28C7D3;")
         user_layout = QVBoxLayout(user_widget)
         user_layout.setContentsMargins(20, 15, 20, 15)
         
@@ -1173,8 +1196,8 @@ class AdminDashboard(QMainWindow):
             user_name = QLabel("Administrador")
             user_role = QLabel("Sistema")
             
-        user_name.setStyleSheet(f"color: #000000; font-size: 16px; font-weight: bold;")
-        user_role.setStyleSheet(f"color: rgba(0,0,0,0.8); font-size: 13px;")
+        user_name.setStyleSheet(f"color: #8B5CF6; font-size: 16px; font-weight: bold;")
+        user_role.setStyleSheet(f"color: rgba(255,255,255,0.9); font-size: 13px;")
         
         user_layout.addWidget(user_name)
         user_layout.addWidget(user_role)
@@ -1187,13 +1210,13 @@ class AdminDashboard(QMainWindow):
         buttons_layout.setSpacing(8)
 
         menu_items = [
-            ("🏠", "Home", 0),
-            ("💊", "Produtos", 1),
-            ("📦", "Lotes", 2),
-            ("💰", "Vendas", 3),
-            ("📊", "Finanças", 4),
-            ("👥", "Usuários", 5),
-            ("💼", "Fornecedores", 6)
+            ("", "Home", 0),
+            ("", "Produtos", 1),
+            ("", "Lotes", 2),
+            ("", "Vendas", 3),
+            ("", "Finanças", 4),
+            ("", "Usuários", 5),
+            ("", "Fornecedores", 6)
         ]
 
         self.menu_buttons = []
@@ -1210,7 +1233,7 @@ class AdminDashboard(QMainWindow):
         buttons_layout.addStretch()
         
         # Botão de logout - volta para a tela de login
-        logout_btn = QPushButton("🚪  Sair")
+        logout_btn = QPushButton("  Sair")
         logout_btn.setCursor(Qt.PointingHandCursor)
         logout_btn.setStyleSheet(f"""
             QPushButton {{
@@ -1578,23 +1601,23 @@ class AdminDashboard(QMainWindow):
 
             /* Estilos para input fields */
             QLineEdit, QTextEdit, QComboBox {{
-                border: 1px solid #b36b00;
+                border: 1px solid {BORDER_DIVIDER};
                 border-radius: 6px;
                 padding: 8px;
                 background: #FFFFFF;
                 color: #000000;
-                selection-background-color: #FFD9A6;
+                selection-background-color: {PRIMARY_COLOR};
             }}
 
             QLineEdit:focus, QTextEdit:focus {{
-                border: 2px solid #e07a00;
+                border: 2px solid {PRIMARY_DARK};
                 background: #FFFFFF;
             }}
 
             /* Estilos para tabelas */
             QTableView, QTableWidget {{
                 background: #FFFFFF;
-                alternate-background-color: #FFF7EB;
+                alternate-background-color: {TEAL_LIGHT};
                 gridline-color: #e0a058;
                 border: 1px solid #e0a058;
                 border-radius: 4px;
@@ -1646,17 +1669,17 @@ class AdminDashboard(QMainWindow):
                 background: transparent;
             }
             #titleBar QLabel {
-                color: #263238;
+                color: {TEXT_DARK};
                 font-family: 'Segoe UI';
                 font-size: 14px;
             }
             #titleBar QPushButton {
                 border: none;
-                color: #263238;
+                color: {TEXT_DARK};
                 background: transparent;
             }
             #titleBar QPushButton:hover {
-                background-color: #f3f4f6;
+                background-color: {GRAY_LIGHT};
                 border-radius: 4px;
             }
         """
@@ -1684,7 +1707,7 @@ class AdminDashboard(QMainWindow):
         else:
             self.showMaximized()
             try:
-                self.btn_maximize.setText("❐")
+                self.btn_maximize.setText("")
             except Exception:
                 pass
 
@@ -1735,7 +1758,7 @@ class LoginWindow(QMainWindow):
 
         self.btn_minimize = QPushButton("—")
         self.btn_maximize = QPushButton("▢")
-        self.btn_close = QPushButton("✕")
+        self.btn_close = QPushButton("")
 
         for b in (self.btn_minimize, self.btn_maximize, self.btn_close):
             b.setFixedSize(36, 26)
@@ -1983,7 +2006,7 @@ class LoginWindow(QMainWindow):
             /* Janela principal */
             QMainWindow {{
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-                    stop:0 {AZUL_CARRREGADO}, stop:1 #0f766e);
+                    stop:0 {PRIMARY_COLOR}, stop:1 {PRIMARY_DARK});
             }}
             
             /* Painel esquerdo */
@@ -2067,7 +2090,7 @@ class LoginWindow(QMainWindow):
                 font-weight: 600;
                 color: white;
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 {VERDE_PRINCIPAL}, stop:1 #059669);
+                    stop:0 {PRIMARY_COLOR}, stop:1 {PRIMARY_DARK});
                 border: none;
                 border-radius: 12px;
                 padding: 10px;
@@ -2076,19 +2099,19 @@ class LoginWindow(QMainWindow):
             
             #loginButton:hover {{
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #0da271, stop:1 #047857);
+                    stop:0 {PRIMARY_COLOR}, stop:1 {PRIMARY_DARK});
             }}
             
             #loginButton:pressed {{
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #059669, stop:1 #065f46);
+                    stop:0 {PRIMARY_DARK}, stop:1 {PRIMARY_COLOR});
             }}
             
             /* Botão de esqueci senha */
             #forgotButton {{
                 font-family: 'Segoe UI', Arial, sans-serif;
                 font-size: 14px;
-                color: {AZUL_CARRREGADO};
+                color: {PRIMARY_DARK};
                 background: transparent;
                 border: none;
                 border-radius: 8px;
@@ -2097,12 +2120,12 @@ class LoginWindow(QMainWindow):
             }}
             
             #forgotButton:hover {{
-                background-color: {AZUL_BEBE}40;
-                color: {AZUL_CARRREGADO};
+                background-color: {PRIMARY_COLOR}40;
+                color: {PRIMARY_DARK};
             }}
             
             #forgotButton:pressed {{
-                background-color: {AZUL_BEBE}60;
+                background-color: {PRIMARY_COLOR}60;
             }}
 
             /* Botões de seleção de perfil */
@@ -2120,7 +2143,7 @@ class LoginWindow(QMainWindow):
 
             QPushButton#roleButtonUser:checked, QPushButton#roleButtonAdmin:checked {{
                 color: white;
-                background: qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 {VERDE_PRINCIPAL}, stop:1 #059669);
+                background: qlineargradient(x1:0,y1:0,x2:1,y2:0,stop:0 {VERDE_PRINCIPAL}, stop:1 {PRIMARY_DARK});
                 border: none;
             }}
 
@@ -2161,7 +2184,7 @@ class LoginWindow(QMainWindow):
         else:
             self.showMaximized()
             try:
-                self.btn_maximize.setText("❐")
+                self.btn_maximize.setText("")
             except Exception:
                 pass
 
@@ -2394,14 +2417,14 @@ def main():
     palette.setColor(palette.Window, QColor(BRANCO))
     palette.setColor(palette.WindowText, QColor(CINZA_ESCURO))
     palette.setColor(palette.Base, QColor(CINZA_CLARO))
-    palette.setColor(palette.AlternateBase, QColor(AZUL_BEBE))
+    palette.setColor(palette.AlternateBase, QColor(PRIMARY_COLOR))
     palette.setColor(palette.ToolTipBase, QColor(VERDE_PRINCIPAL))
     palette.setColor(palette.ToolTipText, QColor(BRANCO))
     palette.setColor(palette.Text, QColor(CINZA_ESCURO))
     palette.setColor(palette.Button, QColor(VERDE_PRINCIPAL))
     palette.setColor(palette.ButtonText, QColor(BRANCO))
     palette.setColor(palette.BrightText, QColor(BRANCO))
-    palette.setColor(palette.Link, QColor(AZUL_CARRREGADO))
+    palette.setColor(palette.Link, QColor(PRIMARY_DARK))
     palette.setColor(palette.Highlight, QColor(VERDE_PRINCIPAL))
     palette.setColor(palette.HighlightedText, QColor(BRANCO))
     app.setPalette(palette)

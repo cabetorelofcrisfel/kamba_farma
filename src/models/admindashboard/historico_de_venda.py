@@ -25,6 +25,20 @@ from PyQt5.QtCore import Qt, QDate, QTimer, pyqtSignal
 from PyQt5.QtGui import QTextDocument, QFont, QIcon, QColor, QBrush
 from PyQt5.QtPrintSupport import QPrinter, QPrintDialog
 
+from colors import *
+
+# Local color overrides for specific UI elements
+SUCCESS_GREEN = SECONDARY_COLOR  # #10B981
+INFO_BLUE = ACCENT_COLOR  # #8B5CF6
+ERROR_RED = DANGER_COLOR  # #E53935
+TEXT_DARK = TEXT_PRIMARY  # #212121
+
+
+def hex_to_rgb(hex_color: str) -> tuple:
+    """Convert hex color to RGB tuple."""
+    hex_color = hex_color.lstrip('#')
+    return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+
 
 # =========================================================
 # Localização do banco de dados
@@ -216,100 +230,100 @@ class HistoricoVendaView(QWidget):
 
     def _get_stylesheet(self) -> str:
         """Retorna o stylesheet CSS para a interface"""
-        return """
-            QWidget {
+        return f"""
+            QWidget {{
                 font-family: 'Segoe UI', Arial, sans-serif;
                 font-size: 14px;
-            }
+            }}
             
-            QPushButton {
-                background-color: #4CAF50;
+            QPushButton {{
+                background-color: {SUCCESS_GREEN};
                 color: white;
                 border: none;
                 padding: 8px 16px;
                 border-radius: 4px;
                 font-weight: 500;
-            }
+            }}
             
-            QPushButton:hover {
-                background-color: #45a049;
-            }
+            QPushButton:hover {{
+                background-color: {PRIMARY_COLOR};
+            }}
             
-            QPushButton:pressed {
-                background-color: #3d8b40;
-            }
+            QPushButton:pressed {{
+                background-color: {PRIMARY_DARK};
+            }}
             
-            QPushButton#btnPdf {
-                background-color: #2196F3;
-            }
+            QPushButton#btnPdf {{
+                background-color: {INFO_BLUE};
+            }}
             
-            QPushButton#btnPdf:hover {
-                background-color: #1976D2;
-            }
+            QPushButton#btnPdf:hover {{
+                background-color: {PRIMARY_COLOR};
+            }}
             
-            QPushButton#btnReset {
-                background-color: #f44336;
-            }
+            QPushButton#btnReset {{
+                background-color: {ERROR_RED};
+            }}
             
-            QPushButton#btnReset:hover {
-                background-color: #d32f2f;
-            }
+            QPushButton#btnReset:hover {{
+                background-color: {ACCENT_RED};
+            }}
             
-            QLineEdit, QDateEdit, QComboBox {
+            QLineEdit, QDateEdit, QComboBox {{
                 padding: 6px;
-                border: 1px solid #ddd;
+                border: 1px solid {BORDER_COLOR};
                 border-radius: 4px;
-                background-color: white;
-            }
+                background-color: {WHITE};
+            }}
             
-            QLineEdit:focus, QDateEdit:focus, QComboBox:focus {
-                border: 1px solid #4CAF50;
+            QLineEdit:focus, QDateEdit:focus, QComboBox:focus {{
+                border: 1px solid {SUCCESS_GREEN};
                 outline: none;
-            }
+            }}
             
-            QTableWidget {
-                gridline-color: #e0e0e0;
-                selection-background-color: #e3f2fd;
-                alternate-background-color: #f9f9f9;
-            }
+            QTableWidget {{
+                gridline-color: {BORDER_COLOR};
+                selection-background-color: {PRIMARY_DARK}20;
+                alternate-background-color: {BACKGROUND_GRAY};
+            }}
             
-            QHeaderView::section {
-                background-color: #f5f5f5;
+            QHeaderView::section {{
+                background-color: {BACKGROUND_GRAY};
                 padding: 8px;
-                border: 1px solid #e0e0e0;
+                border: 1px solid {BORDER_COLOR};
                 font-weight: 600;
-            }
+            }}
             
-            QGroupBox {
-                border: 1px solid #e0e0e0;
+            QGroupBox {{
+                border: 1px solid {BORDER_COLOR};
                 border-radius: 6px;
                 margin-top: 10px;
                 font-weight: 600;
                 padding-top: 10px;
-            }
+            }}
             
-            QGroupBox::title {
+            QGroupBox::title {{
                 subcontrol-origin: margin;
                 left: 10px;
                 padding: 0 5px 0 5px;
-            }
+            }}
             
-            QLabel#title {
+            QLabel#title {{
                 font-size: 24px;
                 font-weight: 600;
-                color: #2c3e50;
+                color: {TEXT_PRIMARY};
                 margin: 0;
                 padding: 0;
-            }
+            }}
             
-            QLabel#statsLabel {
+            QLabel#statsLabel {{
                 font-size: 16px;
                 font-weight: 500;
-                color: #34495e;
+                color: {TEXT_SECONDARY};
                 padding: 5px;
-                background-color: #ecf0f1;
+                background-color: {BACKGROUND_GRAY};
                 border-radius: 4px;
-            }
+            }}
         """
 
     def _build_ui(self):
@@ -321,7 +335,7 @@ class HistoricoVendaView(QWidget):
         # Cabeçalho
         header = QHBoxLayout()
         
-        title = QLabel("📊 Histórico de Vendas")
+        title = QLabel(" Histórico de Vendas")
         title.setObjectName("title")
         header.addWidget(title)
         header.addStretch()
@@ -351,7 +365,7 @@ class HistoricoVendaView(QWidget):
         main_layout.addLayout(stats_layout)
 
         # Grupo de Filtros
-        filter_group = QGroupBox("🔍 Filtros de Busca")
+        filter_group = QGroupBox(" Filtros de Busca")
         filter_layout = QFormLayout(filter_group)
         
         # Filtros em linha
@@ -433,7 +447,7 @@ class HistoricoVendaView(QWidget):
         self.table = QTableWidget()
         self.table.setColumnCount(5)
         self.table.setHorizontalHeaderLabels([
-            "ID", "Cliente", "Data/Hora", "Itens", "Total (AOA)"
+            "ID", "Cliente", "Data/Hora", "Itens", "Total (Kz)"
         ])
         
         # Configurar cabeçalho
@@ -455,19 +469,19 @@ class HistoricoVendaView(QWidget):
         footer_layout = QHBoxLayout()
         
         # Total geral
-        self.total_label = QLabel("Total Geral: AOA 0,00")
+        self.total_label = QLabel("Total Geral: Kz 0,00")
         self.total_label.setStyleSheet("font-weight: 600; font-size: 16px; color: #2c3e50;")
         footer_layout.addWidget(self.total_label)
         footer_layout.addStretch()
         
         # Botões de ação
-        self.btn_refresh = QPushButton("🔄 Atualizar")
+        self.btn_refresh = QPushButton(" Atualizar")
         self.btn_refresh.clicked.connect(self.load_history)
         
-        self.btn_detalhes = QPushButton("📄 Ver Detalhes")
+        self.btn_detalhes = QPushButton(" Ver Detalhes")
         self.btn_detalhes.clicked.connect(self.ver_detalhes)
         
-        self.btn_pdf = QPushButton("📊 Gerar PDF")
+        self.btn_pdf = QPushButton(" Gerar PDF")
         self.btn_pdf.setObjectName("btnPdf")
         self.btn_pdf.clicked.connect(self.on_generate_pdf)
         
@@ -584,7 +598,7 @@ class HistoricoVendaView(QWidget):
             
             # Total
             total = venda["total"] or 0.0
-            item_total = QTableWidgetItem(f"AOA {total:,.2f}")
+            item_total = QTableWidgetItem(f"Kz {total:,.2f}")
             item_total.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
             
             # Colorir baseado no valor
@@ -596,7 +610,7 @@ class HistoricoVendaView(QWidget):
             self.table.setItem(row, 4, item_total)
         
         # Atualizar label do total geral
-        self.total_label.setText(f"Total Geral: AOA {self.total_geral:,.2f}")
+        self.total_label.setText(f"Total Geral: Kz {self.total_geral:,.2f}")
 
     def _atualizar_estatisticas(self):
         """Atualiza as estatísticas exibidas"""
@@ -611,10 +625,10 @@ class HistoricoVendaView(QWidget):
         mais_recente = max(self.vendas, key=lambda x: x["data"]) if self.vendas else None
         
         stats_text = f"""
-        <b>📈 Estatísticas:</b> 
+        <b> Estatísticas:</b> 
         Total de Vendas: <b>{total_vendas}</b> | 
-        Valor Médio: <b>AOA {media_valor:,.2f}</b> | 
-        Total Geral: <b>AOA {self.total_geral:,.2f}</b>
+        Valor Médio: <b>Kz {media_valor:,.2f}</b> | 
+        Total Geral: <b>Kz {self.total_geral:,.2f}</b>
         """
         
         if mais_recente:
@@ -774,7 +788,7 @@ class HistoricoVendaView(QWidget):
         try:
             with open(file_name, 'w', encoding='utf-8') as f:
                 # Cabeçalho
-                f.write("ID;Cliente;Data;Hora;Itens;Total(AOA)\n")
+                f.write("ID;Cliente;Data;Hora;Itens;Total(Kz)\n")
                 
                 # Dados
                 for venda in self.vendas:
@@ -815,41 +829,41 @@ class VendaInvoiceDialog(QDialog):
         self._build_ui()
 
     def _get_stylesheet(self) -> str:
-        return """
-            QDialog {
-                background-color: #f5f5f5;
-            }
+        return f"""
+            QDialog {{
+                background-color: {BACKGROUND_GRAY};
+            }}
             
-            QLabel {
+            QLabel {{
                 font-family: 'Segoe UI', Arial, sans-serif;
-            }
+            }}
             
-            QPushButton {
-                background-color: #2196F3;
+            QPushButton {{
+                background-color: {INFO_BLUE};
                 color: white;
                 border: none;
                 padding: 8px 16px;
                 border-radius: 4px;
                 font-weight: 500;
-            }
+            }}
             
-            QPushButton:hover {
-                background-color: #1976D2;
-            }
+            QPushButton:hover {{
+                background-color: {PRIMARY_COLOR};
+            }}
             
-            QTableWidget {
-                gridline-color: #e0e0e0;
-                selection-background-color: #e3f2fd;
-                background-color: white;
-            }
+            QTableWidget {{
+                gridline-color: {BORDER_COLOR};
+                selection-background-color: {PRIMARY_DARK}20;
+                background-color: {WHITE};
+            }}
             
-            QHeaderView::section {
-                background-color: #2196F3;
+            QHeaderView::section {{
+                background-color: {INFO_BLUE};
                 color: white;
                 padding: 8px;
                 border: none;
                 font-weight: 600;
-            }
+            }}
         """
 
     def _build_ui(self):
@@ -859,16 +873,16 @@ class VendaInvoiceDialog(QDialog):
 
         # Cabeçalho da fatura
         header_frame = QFrame()
-        header_frame.setStyleSheet("""
-            QFrame {
+        header_frame.setStyleSheet(f"""
+            QFrame {{
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #2196F3, stop:1 #1976D2);
+                    stop:0 {INFO_BLUE}, stop:1 {PRIMARY_COLOR});
                 border-radius: 8px;
                 padding: 20px;
-            }
-            QLabel {
+            }}
+            QLabel {{
                 color: white;
-            }
+            }}
         """)
         
         header_layout = QVBoxLayout(header_frame)
@@ -876,7 +890,7 @@ class VendaInvoiceDialog(QDialog):
         # Título
         title_layout = QHBoxLayout()
         
-        title_label = QLabel("KAMBA FARMA")
+        title_label = QLabel("Moyo FARMA")
         title_label.setStyleSheet("font-size: 28px; font-weight: 700;")
         title_layout.addWidget(title_label)
         title_layout.addStretch()
@@ -891,10 +905,10 @@ class VendaInvoiceDialog(QDialog):
         empresa_layout = QHBoxLayout()
         
         empresa_info = QLabel("""
-        <b>Kamba Farma Lda.</b><br>
-        Av. 21 de Janeiro, Luanda<br>
+        <b>Moyo Farma Lda.</b><br>
+        Farmacia nova lindona, Luanda<br>
         Telefone: +244 923 456 789<br>
-        Email: info@kambafarma.ao
+        Email: novalinda@gmail.com
         """)
         empresa_info.setStyleSheet("font-size: 12px;")
         empresa_layout.addWidget(empresa_info)
@@ -906,16 +920,25 @@ class VendaInvoiceDialog(QDialog):
 
         # Informações da venda
         info_frame = QFrame()
-        info_frame.setStyleSheet("""
-            QFrame {
-                background-color: white;
+        info_frame.setStyleSheet(f"""
+            QFrame {{
+                background-color: {WHITE};
                 border-radius: 6px;
                 padding: 15px;
-                border: 1px solid #e0e0e0;
-            }
+                border: 1px solid {BORDER_COLOR};
+            }}
         """)
         
         info_layout = QHBoxLayout(info_frame)
+        
+        # Empresa
+        empresa_group = QGroupBox("Farmácia")
+        empresa_layout = QVBoxLayout()
+        empresa_text = QLabel("<b>Farmácia Nova Lindona</b><br>Localização: Cuca<br>Contacto: +244 923 456 789")
+        empresa_text.setStyleSheet("font-size: 13px;")
+        empresa_layout.addWidget(empresa_text)
+        empresa_group.setLayout(empresa_layout)
+        info_layout.addWidget(empresa_group)
         
         # Cliente
         cliente_group = QGroupBox("Cliente")
@@ -941,17 +964,17 @@ class VendaInvoiceDialog(QDialog):
         total_group = QGroupBox("Total")
         total_layout = QVBoxLayout()
         total = self.venda.get('total') or 0.0
-        total_label = QLabel(f"AOA {total:,.2f}")
-        total_label.setStyleSheet("font-size: 20px; font-weight: 700; color: #2196F3;")
+        total_label = QLabel(f"{total:,.2f} Kz")
+        total_label.setStyleSheet(f"font-size: 20px; font-weight: 700; color: {INFO_BLUE};")
         total_layout.addWidget(total_label)
-        data_group.setLayout(total_layout)
+        total_group.setLayout(total_layout)
         info_layout.addWidget(total_group)
         
         layout.addWidget(info_frame)
 
         # Tabela de produtos
         produtos_label = QLabel("Itens da Venda")
-        produtos_label.setStyleSheet("font-size: 18px; font-weight: 600; color: #2c3e50;")
+        produtos_label.setStyleSheet(f"font-size: 18px; font-weight: 600; color: {TEXT_PRIMARY};")
         layout.addWidget(produtos_label)
         
         self.table = QTableWidget()
@@ -984,31 +1007,31 @@ class VendaInvoiceDialog(QDialog):
             
             # Preço unitário
             preco = p.get('preco_unitario') or 0.0
-            preco_item = QTableWidgetItem(f"AOA {preco:,.2f}")
+            preco_item = QTableWidgetItem(f"Kz {preco:,.2f}")
             preco_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
             self.table.setItem(i, 3, preco_item)
             
             # Subtotal
             subtotal = p.get('subtotal') or 0.0
-            subtotal_item = QTableWidgetItem(f"AOA {subtotal:,.2f}")
+            subtotal_item = QTableWidgetItem(f"Kz {subtotal:,.2f}")
             subtotal_item.setTextAlignment(Qt.AlignRight | Qt.AlignVCenter)
-            subtotal_item.setForeground(QBrush(QColor(0, 100, 0)))
+            subtotal_item.setForeground(QBrush(QColor(*hex_to_rgb(SECONDARY_COLOR))))
             self.table.setItem(i, 4, subtotal_item)
         
         layout.addWidget(self.table)
 
         # Rodapé com totais
         footer_frame = QFrame()
-        footer_frame.setStyleSheet("""
-            QFrame {
-                background-color: #f8f9fa;
+        footer_frame.setStyleSheet(f"""
+            QFrame {{
+                background-color: {BACKGROUND_GRAY};
                 border-radius: 6px;
                 padding: 15px;
-                border: 1px solid #e0e0e0;
-            }
-            QLabel {
+                border: 1px solid {BORDER_COLOR};
+            }}
+            QLabel {{
                 font-family: 'Segoe UI', Arial, sans-serif;
-            }
+            }}
         """)
         
         footer_layout = QHBoxLayout(footer_frame)
@@ -1027,11 +1050,11 @@ class VendaInvoiceDialog(QDialog):
         # Total
         total_layout = QVBoxLayout()
         total_text = QLabel(f"TOTAL GERAL")
-        total_text.setStyleSheet("font-size: 14px; color: #666;")
+        total_text.setStyleSheet(f"font-size: 14px; color: {TEXT_SECONDARY};")
         total_layout.addWidget(total_text)
         
-        total_valor = QLabel(f"AOA {total:,.2f}")
-        total_valor.setStyleSheet("font-size: 32px; font-weight: 700; color: #2196F3;")
+        total_valor = QLabel(f"Kz {total:,.2f}")
+        total_valor.setStyleSheet(f"font-size: 32px; font-weight: 700; color: {INFO_BLUE};")
         total_layout.addWidget(total_valor)
         
         footer_layout.addLayout(total_layout)
@@ -1042,10 +1065,10 @@ class VendaInvoiceDialog(QDialog):
         btn_layout = QHBoxLayout()
         btn_layout.addStretch()
         
-        self.btn_imprimir = QPushButton("🖨️ Imprimir")
+        self.btn_imprimir = QPushButton(" Imprimir")
         self.btn_imprimir.clicked.connect(self.imprimir)
         
-        self.btn_pdf = QPushButton("📄 Salvar PDF")
+        self.btn_pdf = QPushButton(" Salvar PDF")
         self.btn_pdf.clicked.connect(self.gerar_pdf_dialog)
         
         self.btn_fechar = QPushButton("Fechar")
@@ -1104,7 +1127,7 @@ class VendaInvoiceDialog(QDialog):
                     <div class="invoice">FATURA #{venda_id}</div>
                     <div style="clear: both;"></div>
                     <div style="font-size: 12px; margin-top: 10px;">
-                        Av. 21 de Janeiro, Luanda • Telefone: +244 923 456 789 • Email: info@kambafarma.ao
+                        Farmácia Nova Lindona • Localização: Cuca • Contacto: +244 923 456 789
                     </div>
                 </div>
                 
@@ -1138,8 +1161,8 @@ class VendaInvoiceDialog(QDialog):
                         <td>{p.get('produto_id') or 'N/A'}</td>
                         <td>{p.get('produto_nome') or 'Produto não identificado'}</td>
                         <td style="text-align: center;">{p.get('quantidade') or 0}</td>
-                        <td style="text-align: right;">AOA {p.get('preco_unitario') or 0:,.2f}</td>
-                        <td style="text-align: right; color: #006400;">AOA {p.get('subtotal') or 0:,.2f}</td>
+                        <td style="text-align: right;">Kz {p.get('preco_unitario') or 0:,.2f}</td>
+                        <td style="text-align: right; color: #006400;">Kz {p.get('subtotal') or 0:,.2f}</td>
                     </tr>
                 """
             
@@ -1152,7 +1175,7 @@ class VendaInvoiceDialog(QDialog):
                         Produtos: {len(produtos)}
                     </div>
                     <div class="total">
-                        TOTAL: AOA {total:,.2f}
+                        TOTAL: Kz {total:,.2f}
                     </div>
                 </div>
                 
@@ -1237,14 +1260,14 @@ class VendaInvoiceDialog(QDialog):
                 <tr>
                     <td>{p.get('produto_nome') or 'N/A'}</td>
                     <td>{p.get('quantidade') or 0}</td>
-                    <td>AOA {p.get('preco_unitario') or 0:,.2f}</td>
-                    <td>AOA {p.get('subtotal') or 0:,.2f}</td>
+                    <td>Kz {p.get('preco_unitario') or 0:,.2f}</td>
+                    <td>Kz {p.get('subtotal') or 0:,.2f}</td>
                 </tr>
             """
         
         html += f"""
             </table>
-            <p class="total">Total: AOA {total:,.2f}</p>
+            <p class="total">Total: Kz {total:,.2f}</p>
         </body>
         </html>
         """

@@ -36,13 +36,17 @@ except Exception:
             return hashlib.sha256(p.encode('utf-8')).hexdigest()
 # Não ligar à base de dados por enquanto — autenticação local de teste
 
-# Adicione estas cores se precisar de constantes
-AZUL_CARRREGADO = "#1e3a8a"      # Azul escuro para textos e destaques
-AZUL_BEBE = "#93c5fd"           # Azul claro para fundos e hover
-VERDE_PRINCIPAL = "#10b988"     # Verde predominante não muito carregado
-CINZA_ESCURO = "#374151"        # Para textos
-CINZA_CLARO = "#f3f4f6"         # Para fundos
-BRANCO = "#ffffff"
+from config.colors import *
+
+# Backwards compatibility aliases used in UI
+TEAL_PRIMARY = PRIMARY_COLOR
+TEAL_DARK = PRIMARY_DARK
+VERDE_PRINCIPAL = PRIMARY_COLOR
+AZUL_CARRREGADO = PRIMARY_DARK
+AZUL_BEBE = PRIMARY_COLOR
+CINZA_ESCURO = TEXT_PRIMARY
+CINZA_CLARO = BACKGROUND_GRAY
+BRANCO = WHITE
 
 class LoginWindow(QMainWindow):
     def __init__(self):
@@ -275,7 +279,7 @@ class LoginWindow(QMainWindow):
             /* Janela principal */
             QMainWindow {{
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-                    stop:0 {AZUL_CARRREGADO}, stop:1 #0f766e);
+                    stop:0 {PRIMARY_COLOR}, stop:1 {PRIMARY_DARK});
             }}
             
             /* Painel esquerdo */
@@ -359,7 +363,7 @@ class LoginWindow(QMainWindow):
                 font-weight: 600;
                 color: white;
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 {VERDE_PRINCIPAL}, stop:1 #059669);
+                    stop:0 {PRIMARY_COLOR}, stop:1 {PRIMARY_DARK});
                 border: none;
                 border-radius: 12px;
                 padding: 10px;
@@ -368,7 +372,7 @@ class LoginWindow(QMainWindow):
             
             #loginButton:hover {{
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #0da271, stop:1 #047857);
+                    stop:0 {PRIMARY_COLOR}, stop:1 {PRIMARY_DARK});
             }}
             
             #loginButton:pressed {{
